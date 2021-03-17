@@ -191,6 +191,14 @@ void conduitLoop() {
       byte neighborData = getLastValueReceivedOnFace(banditFace);
       if (getIsTreasure(neighborData) == false) {//hey, it's a bandit!
         banditSignal = neighborData;
+
+        //real quick, just checking if I'm giving this guy points, and if so I should decrement points
+        if (!pointsPassed) {
+          if (getShowingResults(neighborData) == true) {
+            pointsPassed = true;
+            pointsEarned = pointsEarned / 2;
+          }
+        }
       } else {
         banditSignal = 0;
       }
