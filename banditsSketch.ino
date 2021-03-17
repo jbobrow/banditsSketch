@@ -7,6 +7,11 @@ bool isRevealed = false;
 byte currentBid = 1;
 
 byte pointsEarned = 0;
+bool pointsPassed = false;
+byte diamondFace = 6;
+byte diamondSignal;
+byte banditFace = 6;
+byte banditSignal;
 
 bool showingResults = false;
 Timer resultTimer;
@@ -65,20 +70,28 @@ void loop() {
   //do communication
 
   if (isTreasure) {
-    if (showingResults) {
-      FOREACH_FACE(f) {
-        byte sendData;
-        if (winningFace == f) {
-          sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3) + prizeSignal;
-        } else {
-          sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3);
+    if (isDiamond) {
+      if (showingResults) {
+        FOREACH_FACE(f) {
+          byte sendData;
+          if (winningFace == f) {
+            sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3) + prizeSignal;
+          } else {
+            sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3);
+          }
+          setValueSentOnFace(sendData, f);
         }
-        setValueSentOnFace(sendData, f);
+      } else {
+        FOREACH_FACE(f) {
+          byte sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3);
+          setValueSentOnFace(sendData, f);
+        }
       }
-    } else {
-      FOREACH_FACE(f) {
-        byte sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3);
-        setValueSentOnFace(sendData, f);
+    } else {//conduit signaling
+      setValueSentOnAllFaces(0);
+      if (diamondFace != 6) {//this is the special conduit mirroring
+        setValueSentOnFace(diamondSignal, banditFace);
+        setValueSentOnFace(banditSignal, diamondFace);
       }
     }
   } else {
@@ -158,6 +171,33 @@ void diamondLoop() {
 
 void conduitLoop() {
 
+  //first step, determine where the diamond is
+  diamondFace = 6;
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {
+      byte neighborData = getLastValueReceivedOnFace(f);
+      if (getIsTreasure(neighborData) == true && getIsDiamond(neighborData) == true) {//hey, a diamond!
+        diamondFace = f;
+        diamondSignal = (neighborData & 56) + prizeSignal;
+      }
+    }
+  }
+
+  //now, extrapolate where the potential bandit face should be
+  banditFace = 6;
+  if (diamondFace != 6) {
+    banditFace = (diamondFace + 3) % 6;
+    if (!isValueReceivedOnFaceExpired(banditFace)) {//oh, I've got a neighbor there
+      byte neighborData = getLastValueReceivedOnFace(banditFace);
+      if (getIsTreasure(neighborData) == false) {//hey, it's a bandit!
+        banditSignal = neighborData;
+      } else {
+        banditSignal = 0;
+      }
+    }  else {
+      banditSignal = 0;
+    }
+  }
 }
 
 void banditLoop() {
@@ -201,6 +241,8 @@ void banditLoop() {
             //this is where we gotta do a lot. This is where we become... a conduit!
             isTreasure = true;
             pointsEarned = getPrizeSignal(neighborData);
+            pointsPassed = false;
+            prizeSignal = pointsEarned - (pointsEarned / 2);
           }
         }
       }
