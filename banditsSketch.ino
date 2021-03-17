@@ -6,6 +6,8 @@ byte teamColor = 1;
 bool isRevealed = false;
 byte currentBid = 1;
 
+byte pointsEarned = 0;
+
 bool showingResults = false;
 Timer resultTimer;
 #define RESULTS_INTERVAL 1000
@@ -39,7 +41,11 @@ void loop() {
       }
     } else {
       setColor(OFF);
-      setColorOnFace(WHITE, 1);
+      FOREACH_FACE(f) {
+        if (f < pointsEarned) {
+          setColorOnFace(WHITE, f);
+        }
+      }
     }
   } else {
     if (isRevealed) {
@@ -96,44 +102,62 @@ void treasureLoop() {
     isDiamond = false;
   }
 
-  //so we need to look around for the bids and determine a winner
-  //here's what I want to know
-  byte bidCount[3] = {0, 0, 0};//this tells me how many bids of 1/2/3 we receive
-  byte bidLocation[3] = {6, 6, 6};//this tell me where the bid is located, defaulting to 6 because that's nowhere
+  if (isDiamond) {
+    diamondLoop();
+  } else {
+    conduitLoop();
+  }
+}
 
-  //run through the faces and fill out these arrays
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
-      byte neighborData = getLastValueReceivedOnFace(f);
-      if (getIsTreasure(neighborData) == false) {
-        byte thisBid = getBid(neighborData);
-        bidCount[thisBid - 1] += 1;//increment the count for this type of bid
-        bidLocation[thisBid - 1] = f;//set this as the location for that bid. Overwriting is fine because duplicates can't score anyway
+void diamondLoop() {
+  if (showingResults) {
+    if (resultTimer.isExpired()) {
+      showingResults = false;
+    }
+  } else {
+    //so we need to look around for the bids and determine a winner
+    //here's what I want to know
+    byte bidCount[3] = {0, 0, 0};//this tells me how many bids of 1/2/3 we receive
+    byte bidLocation[3] = {6, 6, 6};//this tell me where the bid is located, defaulting to 6 because that's nowhere
+
+    //run through the faces and fill out these arrays
+    FOREACH_FACE(f) {
+      if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+        byte neighborData = getLastValueReceivedOnFace(f);
+        if (getIsTreasure(neighborData) == false) {
+          byte thisBid = getBid(neighborData);
+          bidCount[thisBid - 1] += 1;//increment the count for this type of bid
+          bidLocation[thisBid - 1] = f;//set this as the location for that bid. Overwriting is fine because duplicates can't score anyway
+        }
       }
     }
+
+    //now determine the winner and where it is located
+    winningFace = 6;//default to 6 because that's no one
+    if (bidCount[2] == 1) {
+      winningFace = bidLocation[2];
+      prizeSignal = 3;
+    } else if (bidCount[1] == 1) {
+      winningFace = bidLocation[1];
+      prizeSignal = 4;
+    } else if (bidCount[0] == 1) {
+      winningFace = bidLocation[0];
+      prizeSignal = 5;
+    }
+
+    if (buttonDoubleClicked()) {//ok, so this is where we do the reveal
+      showingResults = true;
+      resultTimer.set(RESULTS_INTERVAL);
+    }
+
+
   }
 
-  //now determine the winner and where it is located
-  winningFace = 6;//default to 6 because that's no one
-  if (bidCount[2] == 1) {
-    winningFace = bidLocation[2];
-    prizeSignal = 3;
-  } else if (bidCount[1] == 1) {
-    winningFace = bidLocation[1];
-    prizeSignal = 4;
-  } else if (bidCount[0] == 1) {
-    winningFace = bidLocation[0];
-    prizeSignal = 5;
-  }
 
-  if (buttonDoubleClicked()) {//ok, so this is where we do the reveal
-    showingResults = true;
-    resultTimer.set(RESULTS_INTERVAL);
-  }
+}
 
-  if (resultTimer.isExpired()) {
-    showingResults = false;
-  }
+void conduitLoop() {
+
 }
 
 void banditLoop() {
@@ -163,10 +187,33 @@ void banditLoop() {
   if (buttonDoubleClicked()) {
     teamColor = (teamColor + 1) % 6;
   }
+
+  //now let's handle the win/lose signal stuff
+  //so we need to find the treasure face that we are touching and listen for it to tell us stuff
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+      byte neighborData = getLastValueReceivedOnFace(f);
+
+      if (getIsTreasure(neighborData) == true && getIsDiamond(neighborData) == true) {//this is my diamond neighbor (or the one faking it)!
+        //is it telling me to show results, and if so, did I win a prize?
+        if (getShowingResults(neighborData) == true) {//time to show results!
+          if (getPrizeSignal(neighborData) > 0) {//ooh, we won a prize
+            //this is where we gotta do a lot. This is where we become... a conduit!
+            isTreasure = true;
+            pointsEarned = getPrizeSignal(neighborData);
+          }
+        }
+      }
+    }
+  }
 }
 
 bool getIsTreasure(byte data) {
   return (data >> 5);
+}
+
+bool getIsDiamond(byte data) {
+  return ((data >> 4) & 1);
 }
 
 byte getBid(byte data) {
