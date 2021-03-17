@@ -194,7 +194,7 @@ void conduitLoop() {
 
         //real quick, just checking if I'm giving this guy points, and if so I should decrement points
         if (!pointsPassed) {
-          if (getShowingResults(neighborData) == true) {
+          if (getShowingResults(getLastValueReceivedOnFace(diamondFace)) == true) {
             pointsPassed = true;
             pointsEarned = pointsEarned / 2;
           }
