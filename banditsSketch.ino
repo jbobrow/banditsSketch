@@ -40,31 +40,12 @@ void loop() {
   //do display
   if (isTreasure) {
     if (isDiamond) {
-      setColor (WHITE);
-      if (winningFace != 6) {
-        setColorOnFace(RED, winningFace);
-      }
+      diamondVisuals();
     } else {
-      setColor(OFF);
-      FOREACH_FACE(f) {
-        if (f < pointsEarned) {
-          setColorOnFace(WHITE, f);
-        }
-      }
+      conduitVisuals();
     }
   } else {
-    if (isRevealed) {
-      setColor(OFF);
-      FOREACH_FACE(f) {
-        if (f < currentBid) {
-          setColorOnFace(teamColors[teamColor], f);
-        }
-      }
-    } else {
-      FOREACH_FACE(f) {
-        setColorOnFace(dim(teamColors[teamColor], random(150)), f);
-      }
-    }
+    banditVisuals();
   }
 
   //do communication
@@ -253,6 +234,44 @@ void banditLoop() {
             prizeSignal = pointsEarned - (pointsEarned / 2);
           }
         }
+      }
+    }
+  }
+}
+
+void diamondVisuals() {
+  setColor (WHITE);
+  //uncomment this for winner debug
+  //  if (winningFace != 6) {
+  //    setColorOnFace(RED, winningFace);
+  //  }
+}
+
+void banditVisuals() {
+  if (isRevealed) {
+    setColor(OFF);
+    FOREACH_FACE(f) {
+      if (f < currentBid) {
+        setColorOnFace(teamColors[teamColor], f);
+      } else if (revealTimer.getRemaining() < REVEAL_FADE && !revealTimer.isExpired()) {
+        byte fadeLevel = 150 - map(revealTimer.getRemaining(), 0, REVEAL_FADE, 0, 150);
+        setColorOnFace(dim(teamColors[teamColor], random(fadeLevel)), f);
+      }
+    }
+  } else {
+    FOREACH_FACE(f) {
+      setColorOnFace(dim(teamColors[teamColor], random(150)), f);
+    }
+  }
+}
+
+void conduitVisuals() {
+  setColor(OFF);
+  FOREACH_FACE(f) {
+    if (f < pointsEarned) {
+      setColorOnFace(teamColors[teamColor], f);
+      if (random(100) == f) {
+        setColorOnFace(WHITE, f);
       }
     }
   }
