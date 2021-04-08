@@ -329,8 +329,17 @@ void resetLoop() {
   }
 }
 
+#define SWOOSH_PERIOD 750
+#define SWOOSH_HIGHLIGHT 200
+
 void banditDisplay() {
-  if (blinkState == BANDIT) {
+  //so we start with a default spin
+  FOREACH_FACE(f) {
+    byte swooshLevel = SWOOSH_HIGHLIGHT - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, SWOOSH_HIGHLIGHT - 50);
+    setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
+  }
+
+  if (isRevealed) {
     setColor(dim(teamColors[teamColor], 100));
     FOREACH_FACE(f) {
       if (f < currentBid) {
@@ -340,11 +349,7 @@ void banditDisplay() {
         setColorOnFace(dim(teamColors[teamColor], random(fadeLevel)), f);
       }
     }
-  } else {
-    setColor(WHITE);
   }
-
-
 }
 
 void diamondDisplay() {
