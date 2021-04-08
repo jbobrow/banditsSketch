@@ -1,5 +1,5 @@
-bool isTreasure = false;
-bool isDiamond = false;
+enum blinkStates {BANDIT, BANDIT_RESULTS, CONDUIT, CONDUIT_RESULTS, DIAMOND, DIAMOND_RESULTS, RESET_ALL, RESET_RESOLVE};
+byte blinkState = BANDIT;
 
 Color teamColors[6] = {RED, ORANGE, YELLOW, GREEN, CYAN, MAGENTA};
 byte teamColor = 1;
@@ -7,7 +7,6 @@ bool isRevealed = false;
 byte currentBid = 1;
 
 byte pointsEarned = 0;
-bool pointsPassed = false;
 byte diamondFace = 6;
 byte diamondSignal;
 byte banditFace = 6;
@@ -17,6 +16,7 @@ bool showingResults = false;
 Timer resultTimer;
 #define RESULTS_INTERVAL 1000
 
+byte orientationFace = 0;
 byte prizeSignal = 0;
 byte winningFace = 6;
 
@@ -25,177 +25,102 @@ Timer revealTimer;
 #define REVEAL_FADE 500
 
 void setup() {
+  // put your setup code here, to run once:
 
 }
 
 void loop() {
+  //listen for reset signals
+  if (buttonLongPressed()) {
+    blinkState = RESET_ALL;
+  }
+
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {
+      if (getBlinkState(getLastValueReceivedOnFace(f)) == RESET_ALL) {
+        blinkState = RESET_ALL;
+      }
+    }
+  }
 
   //do loops
-  if (isTreasure) {
-    treasureLoop();
-  } else {
-    banditLoop();
+  switch (blinkState) {
+    case BANDIT:
+    case BANDIT_RESULTS:
+      banditLoop();
+      break;
+    case CONDUIT:
+    case CONDUIT_RESULTS:
+      conduitLoop();
+      break;
+    case DIAMOND:
+    case DIAMOND_RESULTS:
+      diamondLoop();
+      break;
+    case RESET_ALL:
+    case RESET_RESOLVE:
+      resetLoop();
+      break;
   }
 
   //do display
-  if (isTreasure) {
-    if (isDiamond) {
-      diamondVisuals();
-    } else {
-      conduitVisuals();
-    }
-  } else {
-    banditVisuals();
+  switch (blinkState) {
+    case BANDIT:
+    case BANDIT_RESULTS:
+      banditDisplay();
+      break;
+    case CONDUIT:
+    case CONDUIT_RESULTS:
+      conduitDisplay();
+      break;
+    case DIAMOND:
+    case DIAMOND_RESULTS:
+      diamondDisplay();
+      break;
+    case RESET_ALL:
+    case RESET_RESOLVE:
+      resetDisplay();
+      break;
   }
 
   //do communication
-
-  if (isTreasure) {
-    if (isDiamond) {
-      if (showingResults) {
-        FOREACH_FACE(f) {
-          byte sendData;
-          if (winningFace == f) {
-            sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3) + prizeSignal;
-          } else {
-            sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3);
-          }
-          setValueSentOnFace(sendData, f);
-        }
-      } else {
-        FOREACH_FACE(f) {
-          byte sendData = (isTreasure << 5) + (isDiamond << 4) + (showingResults << 3);
-          setValueSentOnFace(sendData, f);
-        }
-      }
-    } else {//conduit signaling
-      setValueSentOnAllFaces(0);
-      if (diamondFace != 6) {//this is the special conduit mirroring
-        setValueSentOnFace(diamondSignal, banditFace);
-        setValueSentOnFace(banditSignal, diamondFace);
-      }
-    }
-  } else {
-    FOREACH_FACE(f) {
-      byte sendData = (isTreasure << 5) + (isDiamond << 4) + (currentBid);
-      setValueSentOnFace(sendData, f);
-    }
+  switch (blinkState) {
+    case BANDIT:
+    case BANDIT_RESULTS:
+      setValueSentOnAllFaces((blinkState << 3) + (currentBid));
+      break;
+    case DIAMOND:
+    case DIAMOND_RESULTS:
+      setValueSentOnAllFaces((blinkState << 3));
+      setValueSentOnFace((blinkState << 3) + (prizeSignal), winningFace);
+      break;
+    case RESET_ALL:
+    case RESET_RESOLVE:
+      setValueSentOnAllFaces(blinkState << 3);
+      break;
+    case CONDUIT:
+    case CONDUIT_RESULTS:
+      setValueSentOnAllFaces(blinkState << 3);
+      setValueSentOnFace(banditSignal, diamondFace);
+      setValueSentOnFace(diamondSignal, banditFace);
+      break;
   }
-
 
   //dump button presses
   buttonSingleClicked();
   buttonDoubleClicked();
   buttonMultiClicked();
-}
-
-void treasureLoop() {
-
-  if (buttonMultiClicked()) {
-    isTreasure = false;
-    isDiamond = false;
-  }
-
-  if (isDiamond) {
-    diamondLoop();
-  } else {
-    conduitLoop();
-  }
-}
-
-void diamondLoop() {
-  if (showingResults) {
-    if (resultTimer.isExpired()) {
-      showingResults = false;
-    }
-  } else {
-    //so we need to look around for the bids and determine a winner
-    //here's what I want to know
-    byte bidCount[3] = {0, 0, 0};//this tells me how many bids of 1/2/3 we receive
-    byte bidLocation[3] = {6, 6, 6};//this tell me where the bid is located, defaulting to 6 because that's nowhere
-
-    //run through the faces and fill out these arrays
-    FOREACH_FACE(f) {
-      if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
-        byte neighborData = getLastValueReceivedOnFace(f);
-        if (getIsTreasure(neighborData) == false) {
-          byte thisBid = getBid(neighborData);
-          bidCount[thisBid - 1] += 1;//increment the count for this type of bid
-          bidLocation[thisBid - 1] = f;//set this as the location for that bid. Overwriting is fine because duplicates can't score anyway
-        }
-      }
-    }
-
-    //now determine the winner and where it is located
-    winningFace = 6;//default to 6 because that's no one
-    if (bidCount[2] == 1) {
-      winningFace = bidLocation[2];
-      prizeSignal = 3;
-    } else if (bidCount[1] == 1) {
-      winningFace = bidLocation[1];
-      prizeSignal = 4;
-    } else if (bidCount[0] == 1) {
-      winningFace = bidLocation[0];
-      prizeSignal = 5;
-    }
-
-    if (buttonDoubleClicked()) {//ok, so this is where we do the reveal
-      showingResults = true;
-      resultTimer.set(RESULTS_INTERVAL);
-    }
-
-
-  }
-
-
-}
-
-void conduitLoop() {
-
-  //first step, determine where the diamond is
-  diamondFace = 6;
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {
-      byte neighborData = getLastValueReceivedOnFace(f);
-      if (getIsTreasure(neighborData) == true && getIsDiamond(neighborData) == true) {//hey, a diamond!
-        diamondFace = f;
-        diamondSignal = (neighborData & 56) + prizeSignal;
-      }
-    }
-  }
-
-  //now, extrapolate where the potential bandit face should be
-  banditFace = 6;
-  if (diamondFace != 6) {
-    banditFace = (diamondFace + 3) % 6;
-    if (!isValueReceivedOnFaceExpired(banditFace)) {//oh, I've got a neighbor there
-      byte neighborData = getLastValueReceivedOnFace(banditFace);
-      if (getIsTreasure(neighborData) == false) {//hey, it's a bandit!
-        banditSignal = neighborData;
-
-        //real quick, just checking if I'm giving this guy points, and if so I should decrement points
-        if (!pointsPassed) {
-          if (getShowingResults(getLastValueReceivedOnFace(diamondFace)) == true) {
-            pointsPassed = true;
-            pointsEarned = pointsEarned / 2;
-          }
-        }
-      } else {
-        banditSignal = 0;
-      }
-    }  else {
-      banditSignal = 0;
-    }
-  }
+  buttonLongPressed();
 }
 
 void banditLoop() {
+
+  //transition to diamond or individually reset
   if (buttonMultiClicked()) {
-    isTreasure = true;
-    isDiamond = true;
+    blinkState = DIAMOND;
   }
 
-  //single click cycles through bids
+  //reveal/change bid
   if (buttonSingleClicked()) {
     //if I'm currently visible, increment count. Otherwise, just become revealed
     if (isRevealed) {
@@ -219,37 +144,194 @@ void banditLoop() {
 
   //now let's handle the win/lose signal stuff
   //so we need to find the treasure face that we are touching and listen for it to tell us stuff
+
   FOREACH_FACE(f) {
     if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
       byte neighborData = getLastValueReceivedOnFace(f);
+      if  (getBlinkState(neighborData) == DIAMOND || getBlinkState(neighborData) == DIAMOND_RESULTS) {
+        orientationFace = f;
+      }
+    }
+  }
 
-      if (getIsTreasure(neighborData) == true && getIsDiamond(neighborData) == true) {//this is my diamond neighbor (or the one faking it)!
-        //is it telling me to show results, and if so, did I win a prize?
-        if (getShowingResults(neighborData) == true) {//time to show results!
-          if (getPrizeSignal(neighborData) > 0) {//ooh, we won a prize
-            //this is where we gotta do a lot. This is where we become... a conduit!
-            isTreasure = true;
-            pointsEarned = getPrizeSignal(neighborData);
-            pointsPassed = false;
-            prizeSignal = pointsEarned - (pointsEarned / 2);
-          }
+  //deal with the outcome of my search
+  byte diamondData = getLastValueReceivedOnFace(orientationFace);
+  if (blinkState == BANDIT) {
+    //listen for RESULTS and prizes
+    if (getBlinkState(diamondData) == DIAMOND_RESULTS) {
+      beginReveal();
+      blinkState = BANDIT_RESULTS;
+
+      //did we win?
+      if (getPrizeSignal(diamondData) > 0) {
+        pointsEarned = getPrizeSignal(diamondData);
+        blinkState = CONDUIT;
+      }
+    }
+  } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
+    if (getBlinkState(diamondData) == DIAMOND) {
+      blinkState = BANDIT;
+    }
+  }
+}
+
+void beginReveal() {
+
+}
+
+void conduitLoop() {
+
+  //first step, determine where the diamond is
+  diamondFace = 6;
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {
+      byte neighborData = getLastValueReceivedOnFace(f);
+      if (getBlinkState(neighborData) == DIAMOND || getBlinkState(neighborData) == DIAMOND_RESULTS) {//hey, a diamond!
+        diamondFace = f;
+        orientationFace = f;
+        //diamondSignal = neighborData;
+      }
+    }
+  }
+
+  //now grab the bandit info (if there is any)
+  banditFace = 6;//default no face
+  banditSignal = (blinkState << 3);//default signal for no bandit
+
+  if (diamondFace != 6) {
+    banditFace = (diamondFace + 3) % 6;
+
+    if (!isValueReceivedOnFaceExpired(banditFace)) {//oh, I've got a neighbor there
+      byte neighborData = getLastValueReceivedOnFace(banditFace);
+
+      if (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == BANDIT_RESULTS || getBlinkState(neighborData) == CONDUIT || getBlinkState(neighborData) == CONDUIT_RESULTS) {
+        //the other neighbor is in fact a bandit (or a conduit)
+        banditSignal = (blinkState << 3) + (neighborData & 7);
+      }
+    }
+  }
+
+  if (blinkState == CONDUIT) {
+    //so we just need to look for DIAMOND_RESULTS
+    byte diamondData = getLastValueReceivedOnFace(diamondFace);
+    if (getBlinkState(diamondData) == DIAMOND_RESULTS) {//transition
+      //this is where we do the big reveal thingy
+      beginReveal();
+      blinkState = CONDUIT_RESULTS;
+      if (getPrizeSignal(diamondData) > 0) {
+        //so this is where we send points
+
+        if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
+          //this is a real bandit, so we should pass points
+          prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
+          pointsEarned = pointsEarned / 2;//retain half rounded down
+          diamondSignal = (diamondData & 56) + prizeSignal;
+        } else {
+          //just a conduit, throw them a 1
+          diamondSignal = (diamondData & 56) + 1;
+
+        }
+      }
+    } else {//just conduit the data
+      diamondSignal = diamondData;
+    }
+  } else if (blinkState == CONDUIT_RESULTS) {
+    //all we do here is keep blaring the signal
+    //then we listen to transition back
+    byte diamondData = getLastValueReceivedOnFace(diamondFace);
+    if (getBlinkState(diamondData) == DIAMOND) {
+      diamondSignal = diamondData;
+      blinkState = CONDUIT;
+    }
+  }
+}
+
+void diamondLoop() {
+  if (blinkState == DIAMOND) {//determine winner
+
+    byte bidCount[3] = {0, 0, 0};//this tells me how many bids of 1/2/3 we receive
+    byte bidLocation[3] = {6, 6, 6};//this tell me where the bid is located, defaulting to 6 because that's nowhere
+
+    //run through the faces and fill out these arrays
+    FOREACH_FACE(f) {
+      if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+        byte neighborData = getLastValueReceivedOnFace(f);
+
+        if (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == CONDUIT) {
+          byte thisBid = getBid(neighborData);
+          bidCount[thisBid - 1] += 1;//increment the count for this type of bid
+          bidLocation[thisBid - 1] = f;//set this as the location for that bid. Overwriting is fine because duplicates can't score anyway
+        }
+      }
+
+      //now determine the winner and where it is located
+      winningFace = 6;//default to 6 because that's no one
+      if (bidCount[2] == 1) {
+        winningFace = bidLocation[2];
+        prizeSignal = 3;
+      } else if (bidCount[1] == 1) {
+        winningFace = bidLocation[1];
+        prizeSignal = 4;
+      } else if (bidCount[0] == 1) {
+        winningFace = bidLocation[0];
+        prizeSignal = 5;
+      }
+    }
+
+    //last thing - go to results state if double clicked
+    if (buttonDoubleClicked()) {
+      blinkState = DIAMOND_RESULTS;
+      beginReveal();
+    }
+
+  } else {//tell everyone the results
+    //here we just listen until all of our neighbors are no longer in BANDIT or CONDUIT
+    bool canResolve = true;
+    FOREACH_FACE(f) {
+      if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+        byte neighborData = getLastValueReceivedOnFace(f);
+        if (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == CONDUIT) {
+          canResolve = false;
+        }
+      }
+    }
+
+    if (canResolve) {//we can go back to just being a DIAMOND
+      blinkState = DIAMOND;
+    }
+  }
+}
+
+void resetLoop() {
+  if (blinkState == RESET_ALL) {
+    //just make sure I don't have any neighbors left in non-RESET states
+    blinkState = RESET_RESOLVE;
+    FOREACH_FACE(f) {
+      if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+        byte neighborData = getLastValueReceivedOnFace(f);
+        if (getBlinkState(neighborData) != RESET_ALL && getBlinkState(neighborData) != RESET_RESOLVE) {
+          blinkState = RESET_ALL;
+        }
+      }
+    }
+
+  } else if (blinkState == RESET_RESOLVE) {
+    //just make sure there's no one left in RESET_ALL
+    blinkState = BANDIT;
+    FOREACH_FACE(f) {
+      if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+        byte neighborData = getLastValueReceivedOnFace(f);
+        if (getBlinkState(neighborData) == RESET_ALL) {
+          blinkState = RESET_RESOLVE;
         }
       }
     }
   }
 }
 
-void diamondVisuals() {
-  setColor (WHITE);
-  //uncomment this for winner debug
-  //  if (winningFace != 6) {
-  //    setColorOnFace(RED, winningFace);
-  //  }
-}
-
-void banditVisuals() {
-  if (isRevealed) {
-    setColor(OFF);
+void banditDisplay() {
+  if (blinkState == BANDIT) {
+    setColor(dim(teamColors[teamColor], 100));
     FOREACH_FACE(f) {
       if (f < currentBid) {
         setColorOnFace(teamColors[teamColor], f);
@@ -259,40 +341,48 @@ void banditVisuals() {
       }
     }
   } else {
-    FOREACH_FACE(f) {
-      setColorOnFace(dim(teamColors[teamColor], random(150)), f);
-    }
+    setColor(WHITE);
+  }
+
+
+}
+
+void diamondDisplay() {
+  if (blinkState == DIAMOND) {
+    setColor(WHITE);
+  } else {
+    setColor(dim(WHITE, 50));
+  }
+  if (winningFace < 6) {
+    setColorOnFace(CYAN, winningFace);
+
   }
 }
 
-void conduitVisuals() {
-  setColor(OFF);
-  FOREACH_FACE(f) {
-    if (f < pointsEarned) {
-      setColorOnFace(teamColors[teamColor], f);
-      if (random(100) == f) {
-        setColorOnFace(WHITE, f);
-      }
-    }
+void conduitDisplay() {
+  setColor(dim(WHITE, 50));
+  setColorOnFace(CYAN, diamondFace);
+  setColorOnFace(RED, banditFace);
+}
+
+void resetDisplay() {
+  if (blinkState == RESET_ALL) {
+    setColor(YELLOW);
+
+  } else {
+    setColor(dim(YELLOW, 100));
+
   }
 }
 
-bool getIsTreasure(byte data) {
-  return (data >> 5);
-}
-
-bool getIsDiamond(byte data) {
-  return ((data >> 4) & 1);
+byte getBlinkState (byte data) {
+  return (data >> 3);
 }
 
 byte getBid(byte data) {
-  return (data & 3);
+  return (data & 7);
 }
 
-bool getShowingResults (byte data) {
-  return ((data >> 3) & 1);
-}
-
-byte getPrizeSignal (byte data) {
+byte getPrizeSignal(byte data) {
   return (data & 7);
 }
