@@ -21,8 +21,7 @@ byte prizeSignal = 0;
 byte winningFace = 6;
 
 Timer revealTimer;
-#define REVEAL_INTERVAL 1000
-#define REVEAL_FADE 500
+#define REVEAL_INTERVAL 2000
 
 void setup() {
   // put your setup code here, to run once:
@@ -129,7 +128,7 @@ void banditLoop() {
         currentBid = 1;
       }
     }
-    revealTimer.set(REVEAL_INTERVAL + REVEAL_FADE);
+    revealTimer.set(REVEAL_INTERVAL);
     isRevealed = true;
   }
 
@@ -332,22 +331,29 @@ void resetLoop() {
 #define SWOOSH_PERIOD 750
 #define SWOOSH_HIGHLIGHT 200
 
-void banditDisplay() {
-  //so we start with a default spin
-  FOREACH_FACE(f) {
-    byte swooshLevel = SWOOSH_HIGHLIGHT - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, SWOOSH_HIGHLIGHT - 50);
-    setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
-  }
+#define FADE_DURATION 750
 
-  if (isRevealed) {
-    setColor(dim(teamColors[teamColor], 100));
+void banditDisplay() {
+  if (revealTimer.getRemaining() < FADE_DURATION) {//default display and fade
+    //so we start with a default spin
+    byte sinVal = sin8_C(map(millis() % (SWOOSH_PERIOD * 4), 0, SWOOSH_PERIOD * 4, 0, 255));
+    byte highlightMax = map(sinVal, 0, 255, 50, SWOOSH_HIGHLIGHT);
+
+    byte fadeMax = map(revealTimer.getRemaining(), 0, FADE_DURATION, 0, 255);
+
     FOREACH_FACE(f) {
-      if (f < currentBid) {
-        setColorOnFace(teamColors[teamColor], f);
-      } else if (revealTimer.getRemaining() < REVEAL_FADE && !revealTimer.isExpired()) {
-        byte fadeLevel = 150 - map(revealTimer.getRemaining(), 0, REVEAL_FADE, 0, 150);
-        setColorOnFace(dim(teamColors[teamColor], random(fadeLevel)), f);
-      }
+      byte swooshLevel = max(fadeMax, (highlightMax - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, highlightMax)));
+      setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
+    }
+  } else {//revealed display
+    //so we have a default visual
+    setColor(OFF);
+    setColorOnFace(teamColors[teamColor], 0);
+    if (currentBid > 1) {
+      setColorOnFace(teamColors[teamColor], 1);
+    }
+    if (currentBid > 2) {
+      setColorOnFace(teamColors[teamColor], 5);
     }
   }
 }
