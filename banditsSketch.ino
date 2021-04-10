@@ -91,7 +91,9 @@ void loop() {
     case DIAMOND:
     case DIAMOND_RESULTS:
       setValueSentOnAllFaces((blinkState << 3));
-      setValueSentOnFace((blinkState << 3) + (prizeSignal), winningFace);
+      if (winningFace < 6) {
+        setValueSentOnFace((blinkState << 3) + (prizeSignal), winningFace);
+      }
       break;
     case RESET_ALL:
     case RESET_RESOLVE:
@@ -100,8 +102,12 @@ void loop() {
     case CONDUIT:
     case CONDUIT_RESULTS:
       setValueSentOnAllFaces(blinkState << 3);
-      setValueSentOnFace(banditSignal, diamondFace);
-      setValueSentOnFace(diamondSignal, banditFace);
+      if (diamondFace < 6) {
+        setValueSentOnFace(banditSignal, diamondFace);
+      }
+      if (banditFace < 6) {
+        setValueSentOnFace(diamondSignal, banditFace);
+      }
       break;
   }
 
@@ -167,7 +173,7 @@ void banditLoop() {
         //did we win?
         if (getPrizeSignal(diamondData) > 0) {
           pointsEarned = getPrizeSignal(diamondData);
-          blinkState = CONDUIT;
+          blinkState = CONDUIT_RESULTS;
         }
       }
     } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
@@ -387,9 +393,27 @@ void diamondDisplay() {
 }
 
 void conduitDisplay() {
-  setColor(dim(WHITE, 50));
-  setColorOnFace(CYAN, diamondFace);
-  setColorOnFace(RED, banditFace);
+  setColor(OFF);
+
+  //  FOREACH_FACE(f) {
+  //    if (f < pointsEarned) {
+  //      setColorOnFace(WHITE, f);
+  //    }
+  //  }
+
+  switch (pointsEarned) {
+    case 5:
+      setColorOnFace(teamColors[teamColor], (orientationFace + 4) % 6);
+    case 4:
+      setColorOnFace(teamColors[teamColor], (orientationFace + 2) % 6);
+    case 3:
+      setColorOnFace(teamColors[teamColor], (orientationFace + 5) % 6);
+    case 2:
+      setColorOnFace(teamColors[teamColor], (orientationFace + 1) % 6);
+    case 1:
+      setColorOnFace(teamColors[teamColor], orientationFace);
+      break;
+  }
 }
 
 void resetDisplay() {
