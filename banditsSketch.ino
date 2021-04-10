@@ -393,13 +393,17 @@ void diamondDisplay() {
 }
 
 void conduitDisplay() {
-  setColor(OFF);
+  setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
 
-  //  FOREACH_FACE(f) {
-  //    if (f < pointsEarned) {
-  //      setColorOnFace(WHITE, f);
-  //    }
-  //  }
+  if (sparkleTimer.isExpired()) {
+    sparkleTimer.set(1000);
+    sparkleFace = random(5);
+  }
+  
+  if (sparkleTimer.getRemaining() < 250) {//do a little fade down
+    byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
+    setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
+  }
 
   switch (pointsEarned) {
     case 5:
