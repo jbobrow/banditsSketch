@@ -16,7 +16,7 @@ bool showingResults = false;
 Timer resultTimer;
 #define RESULTS_INTERVAL 1000
 
-byte orientationFace = 0;
+byte orientationFace = 6;
 byte prizeSignal = 0;
 byte winningFace = 6;
 
@@ -114,6 +114,8 @@ void loop() {
 
 void banditLoop() {
 
+  orientationFace = 6;
+
   //transition to diamond or individually reset
   if (buttonMultiClicked()) {
     blinkState = DIAMOND;
@@ -154,22 +156,24 @@ void banditLoop() {
   }
 
   //deal with the outcome of my search
-  byte diamondData = getLastValueReceivedOnFace(orientationFace);
-  if (blinkState == BANDIT) {
-    //listen for RESULTS and prizes
-    if (getBlinkState(diamondData) == DIAMOND_RESULTS) {
-      beginReveal();
-      blinkState = BANDIT_RESULTS;
+  if (orientationFace < 6) {//I have a diamond neighbor
+    byte diamondData = getLastValueReceivedOnFace(orientationFace);
+    if (blinkState == BANDIT) {
+      //listen for RESULTS and prizes
+      if (getBlinkState(diamondData) == DIAMOND_RESULTS) {
+        beginReveal();
+        blinkState = BANDIT_RESULTS;
 
-      //did we win?
-      if (getPrizeSignal(diamondData) > 0) {
-        pointsEarned = getPrizeSignal(diamondData);
-        blinkState = CONDUIT;
+        //did we win?
+        if (getPrizeSignal(diamondData) > 0) {
+          pointsEarned = getPrizeSignal(diamondData);
+          blinkState = CONDUIT;
+        }
       }
-    }
-  } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
-    if (getBlinkState(diamondData) == DIAMOND) {
-      blinkState = BANDIT;
+    } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
+      if (getBlinkState(diamondData) == DIAMOND) {
+        blinkState = BANDIT;
+      }
     }
   }
 }
@@ -343,7 +347,11 @@ void banditDisplay() {
 
     FOREACH_FACE(f) {
       byte swooshLevel = max(fadeMax, (highlightMax - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, highlightMax)));
-      setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
+      if (f == orientationFace) {
+        setColorOnFace(dim(WHITE, swooshLevel), f);
+      } else {
+        setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
+      }
     }
   } else {//revealed display
     //so we have a default visual
@@ -358,15 +366,23 @@ void banditDisplay() {
   }
 }
 
-void diamondDisplay() {
-  if (blinkState == DIAMOND) {
-    setColor(WHITE);
-  } else {
-    setColor(dim(WHITE, 50));
-  }
-  if (winningFace < 6) {
-    setColorOnFace(CYAN, winningFace);
+#define DIAMOND_HUE 175
+#define DIAMOND_SAT_MAX 100
 
+Timer sparkleTimer;
+byte sparkleFace = 0;
+
+void diamondDisplay() {
+  setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255));
+
+  if (sparkleTimer.isExpired()) {
+    sparkleTimer.set(1000);
+    sparkleFace = random(5);
+  }
+
+  if (sparkleTimer.getRemaining() < 250) {//do a little fade down
+    byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
+    setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
   }
 }
 
