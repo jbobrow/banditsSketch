@@ -167,13 +167,15 @@ void banditLoop() {
     if (blinkState == BANDIT) {
       //listen for RESULTS and prizes
       if (getBlinkState(diamondData) == DIAMOND_RESULTS) {
-        beginReveal();
         blinkState = BANDIT_RESULTS;
 
         //did we win?
         if (getPrizeSignal(diamondData) > 0) {
           pointsEarned = getPrizeSignal(diamondData);
           blinkState = CONDUIT_RESULTS;
+          beginReveal(pointsEarned);//remember how many points we're earning
+        } else {
+          beginReveal(0);//no special memory value
         }
       }
     } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
@@ -184,8 +186,17 @@ void banditLoop() {
   }
 }
 
-void beginReveal() {
+Timer resultsTimer;
+#define RESULTS_1 1500
+#define RESULTS_2 1000
+#define RESULTS_3 500
+#define RESULTS_4 250
 
+byte resultsMem = 0;
+
+void beginReveal(byte mem) {
+  resultsTimer.set(RESULTS_1 + RESULTS_2 + RESULTS_3 + RESULTS_4);
+  resultsMem = mem;//used differently by different types of things
 }
 
 void conduitLoop() {
@@ -225,7 +236,6 @@ void conduitLoop() {
     byte diamondData = getLastValueReceivedOnFace(diamondFace);
     if (getBlinkState(diamondData) == DIAMOND_RESULTS) {//transition
       //this is where we do the big reveal thingy
-      beginReveal();
       blinkState = CONDUIT_RESULTS;
       if (getPrizeSignal(diamondData) > 0) {
         //so this is where we send points
@@ -233,11 +243,15 @@ void conduitLoop() {
         if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
           //this is a real bandit, so we should pass points
           prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
+          beginReveal(prizeSignal);//memory value helps us remember how many points we're giving away
+
           pointsEarned = pointsEarned / 2;//retain half rounded down
           diamondSignal = (diamondData & 56) + prizeSignal;
         } else {
           //just a conduit, throw them a 1
           diamondSignal = (diamondData & 56) + 1;
+          beginReveal(0);//memory value of 0 because we're not doing any special animation
+
 
         }
       }
@@ -290,7 +304,7 @@ void diamondLoop() {
     //last thing - go to results state if double clicked
     if (buttonDoubleClicked()) {
       blinkState = DIAMOND_RESULTS;
-      beginReveal();
+      beginReveal(winningFace);
     }
 
   } else {//tell everyone the results
@@ -379,16 +393,31 @@ Timer sparkleTimer;
 byte sparkleFace = 0;
 
 void diamondDisplay() {
-  setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255));
+  if (resultsTimer.isExpired()) {//normal display
+    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255));
 
-  if (sparkleTimer.isExpired()) {
-    sparkleTimer.set(1000);
-    sparkleFace = random(5);
-  }
+    if (sparkleTimer.isExpired()) {
+      sparkleTimer.set(1000);
+      sparkleFace = random(5);
+    }
 
-  if (sparkleTimer.getRemaining() < 250) {//do a little fade down
-    byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
-    setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
+    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
+      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
+      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
+    }
+  } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
+    setColor(WHITE);
+    setColorOnFace(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255), random(5));
+  } else if (resultsTimer.getRemaining() > (RESULTS_3 + RESULTS_4)) {//stage 2
+    setColor(dim(WHITE, 100));
+    setColorOnFace(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100), random(5));
+    if (resultsMem < 6) {
+      setColorOnFace(WHITE, resultsMem);
+    }
+  } else if (resultsTimer.getRemaining() > (RESULTS_4)) {//stage 3
+
+  } else {//stage 4
+
   }
 }
 
@@ -399,7 +428,7 @@ void conduitDisplay() {
     sparkleTimer.set(1000);
     sparkleFace = random(5);
   }
-  
+
   if (sparkleTimer.getRemaining() < 250) {//do a little fade down
     byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
     setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
@@ -423,10 +452,8 @@ void conduitDisplay() {
 void resetDisplay() {
   if (blinkState == RESET_ALL) {
     setColor(YELLOW);
-
   } else {
     setColor(dim(YELLOW, 100));
-
   }
 }
 
