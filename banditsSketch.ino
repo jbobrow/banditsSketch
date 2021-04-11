@@ -175,7 +175,7 @@ void banditLoop() {
           blinkState = CONDUIT_RESULTS;
           beginReveal(pointsEarned);//remember how many points we're earning
         } else {
-          beginReveal(0);//no special memory value
+          beginReveal((orientationFace + 3) % 6);//the orientation face
         }
       }
     } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
@@ -358,30 +358,46 @@ void resetLoop() {
 #define FADE_DURATION 750
 
 void banditDisplay() {
-  if (revealTimer.getRemaining() < FADE_DURATION) {//default display and fade
-    //so we start with a default spin
-    byte sinVal = sin8_C(map(millis() % (SWOOSH_PERIOD * 4), 0, SWOOSH_PERIOD * 4, 0, 255));
-    byte highlightMax = map(sinVal, 0, 255, 50, SWOOSH_HIGHLIGHT);
 
-    byte fadeMax = map(revealTimer.getRemaining(), 0, FADE_DURATION, 0, 255);
+  if (resultsTimer.isExpired()) {//normal display
+    if (revealTimer.getRemaining() < FADE_DURATION) {//default display and fade
+      //so we start with a default spin
+      byte sinVal = sin8_C(map(millis() % (SWOOSH_PERIOD * 4), 0, SWOOSH_PERIOD * 4, 0, 255));
+      byte highlightMax = map(sinVal, 0, 255, 50, SWOOSH_HIGHLIGHT);
 
-    FOREACH_FACE(f) {
-      byte swooshLevel = max(fadeMax, (highlightMax - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, highlightMax)));
-      if (f == orientationFace) {
-        setColorOnFace(dim(WHITE, swooshLevel), f);
-      } else {
-        setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
+      byte fadeMax = map(revealTimer.getRemaining(), 0, FADE_DURATION, 0, 255);
+
+      FOREACH_FACE(f) {
+        byte swooshLevel = max(fadeMax, (highlightMax - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, highlightMax)));
+        if (f == orientationFace) {
+          setColorOnFace(dim(WHITE, swooshLevel), f);
+        } else {
+          setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
+        }
+      }
+    } else {//revealed display
+      //so we have a default visual
+      setColor(OFF);
+      setColorOnFace(teamColors[teamColor], 0);
+      if (currentBid > 1) {
+        setColorOnFace(teamColors[teamColor], 1);
+      }
+      if (currentBid > 2) {
+        setColorOnFace(teamColors[teamColor], 5);
       }
     }
-  } else {//revealed display
-    //so we have a default visual
+  } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
     setColor(OFF);
-    setColorOnFace(teamColors[teamColor], 0);
+    setColorOnFace(dim(teamColors[teamColor], 100), random(5));
+  } else {//stages 2+3+4
+    //display bid in dim color, unless you're the winner
+    setColor(OFF);
+    setColorOnFace(teamColors[teamColor], resultsMem);
     if (currentBid > 1) {
-      setColorOnFace(teamColors[teamColor], 1);
+      setColorOnFace(teamColors[teamColor], (resultsMem + 1) % 6);
     }
     if (currentBid > 2) {
-      setColorOnFace(teamColors[teamColor], 5);
+      setColorOnFace(teamColors[teamColor], (resultsMem + 5) % 6);
     }
   }
 }
@@ -406,18 +422,20 @@ void diamondDisplay() {
       setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
     }
   } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
-    setColor(WHITE);
-    setColorOnFace(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255), random(5));
-  } else if (resultsTimer.getRemaining() > (RESULTS_3 + RESULTS_4)) {//stage 2
-    setColor(dim(WHITE, 100));
-    setColorOnFace(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100), random(5));
+
+    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
+    setColorOnFace(WHITE, random(5));
+
+  } else if (resultsTimer.getRemaining() > (RESULTS_4)) {//stage 2 and 3
+
+    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
+    setColorOnFace(dim(WHITE, 100), random(5));
     if (resultsMem < 6) {
       setColorOnFace(WHITE, resultsMem);
     }
-  } else if (resultsTimer.getRemaining() > (RESULTS_4)) {//stage 3
-
   } else {//stage 4
-
+    byte fadeMap = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
+    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, fadeMap));
   }
 }
 
