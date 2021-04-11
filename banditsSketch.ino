@@ -384,17 +384,15 @@ void banditDisplay() {
     } else {//revealed display
       //so we have a default visual
       setColor(OFF);
-      setColorOnFace(teamColors[teamColor], 0);
-      if (currentBid > 1) {
-        setColorOnFace(teamColors[teamColor], 1);
-      }
-      if (currentBid > 2) {
-        setColorOnFace(teamColors[teamColor], 5);
-      }
+      displayPoints(currentBid, 255, true);
     }
+
+
   } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
     setColor(OFF);
     setColorOnFace(dim(teamColors[teamColor], 100), random(5));
+
+
   } else {//stages 2+3+4
     //display bid in dim color
     Color displayColor = teamColors[teamColor];
@@ -405,13 +403,7 @@ void banditDisplay() {
     } else {
       setColor(OFF);
     }
-    setColorOnFace(teamColors[teamColor], (orientationFace + 3) % 6);
-    if (currentBid > 1) {
-      setColorOnFace(teamColors[teamColor], (orientationFace + 4) % 6);
-    }
-    if (currentBid > 2) {
-      setColorOnFace(teamColors[teamColor], (orientationFace + 8) % 6);
-    }
+    displayPoints(currentBid, 255, true);
   }
 }
 
@@ -463,42 +455,30 @@ void conduitDisplay() {
       setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
     }
 
-    switch (pointsEarned) {
-      case 5:
-        setColorOnFace(teamColors[teamColor], (orientationFace + 4) % 6);
-      case 4:
-        setColorOnFace(teamColors[teamColor], (orientationFace + 2) % 6);
-      case 3:
-        setColorOnFace(teamColors[teamColor], (orientationFace + 5) % 6);
-      case 2:
-        setColorOnFace(teamColors[teamColor], (orientationFace + 1) % 6);
-      case 1:
-        setColorOnFace(teamColors[teamColor], orientationFace);
-        break;
+    displayPoints(pointsEarned, 255, false);
 
-    }
 
   } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 1+2
     if (resultsMem > 0 && resultsMem < 6) {//pretend to be a bandit
       banditDisplay();
     } else {//just be a dark conduit
-      switch (pointsEarned + resultsMem) {//most of the time resultsMem is 0, but I need to add it for fakery before transfers
-        case 5:
-          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 4) % 6);
-        case 4:
-          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 2) % 6);
-        case 3:
-          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 5) % 6);
-        case 2:
-          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 1) % 6);
-        case 1:
-          setColorOnFace(dim(teamColors[teamColor], 100), orientationFace);
-          break;
-      }
+      setColor(OFF);
+      displayPoints(pointsEarned + resultsMem, 100, false);
     }
   } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
-    if (resultsMem > 6) {
+    byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
+    if (resultsMem > 6) {//fake bandit becoming a conduit (getting points)
+      //fade down bid
+      displayPoints(currentBid, fadeVal, false);
+      //fade up points
+      displayPoints(resultsMem, 255 - fadeVal, true);
+    } else if (resultsMem > 0) {//conduit losing points
+      displayPoints(pointsEarned + resultsMem, fadeVal, true);
+      displayPoints(pointsEarned, 255, true);
 
+    } else {
+      //nothing really
+      displayPoints(pointsEarned, 100, true);
     }
   } else {//stage 4
     if (resultsMem > 6) {
@@ -507,6 +487,26 @@ void conduitDisplay() {
   }
 
 
+}
+
+void displayPoints(byte points, byte fade, bool oriented) {
+  byte orient = orientationFace;
+  if (oriented == false) {//it is reverse oriented (outside edge)
+    orient += 3;
+  }
+  switch (points) {
+    case 5:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 4) % 6);
+    case 4:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 2) % 6);
+    case 3:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 5) % 6);
+    case 2:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 1) % 6);
+    case 1:
+      setColorOnFace(dim(teamColors[teamColor], fade), orient);
+      break;
+  }
 }
 
 void resetDisplay() {
