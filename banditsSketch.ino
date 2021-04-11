@@ -243,7 +243,7 @@ void conduitLoop() {
         if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
           //this is a real bandit, so we should pass points
           prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
-          beginReveal(prizeSignal);//memory value helps us remember how many points we're giving away
+          beginReveal(prizeSignal + 6);//memory value helps us remember how many points we're giving away
 
           pointsEarned = pointsEarned / 2;//retain half rounded down
           diamondSignal = (diamondData & 56) + prizeSignal;
@@ -357,6 +357,12 @@ void resetLoop() {
 
 #define FADE_DURATION 750
 
+#define DIAMOND_HUE 175
+#define DIAMOND_SAT_MAX 100
+
+Timer sparkleTimer;
+byte sparkleFace = 0;
+
 void banditDisplay() {
 
   if (resultsTimer.isExpired()) {//normal display
@@ -390,23 +396,26 @@ void banditDisplay() {
     setColor(OFF);
     setColorOnFace(dim(teamColors[teamColor], 100), random(5));
   } else {//stages 2+3+4
-    //display bid in dim color, unless you're the winner
-    setColor(OFF);
-    setColorOnFace(teamColors[teamColor], resultsMem);
+    //display bid in dim color
+    Color displayColor = teamColors[teamColor];
+    if (resultsMem > 6) {
+      //we're actually a conduit, just using this loop
+      setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
+      setColorOnFace(dim(WHITE, 100), random(5));
+    } else {
+      setColor(OFF);
+    }
+    setColorOnFace(teamColors[teamColor], (orientationFace + 3) % 6);
     if (currentBid > 1) {
-      setColorOnFace(teamColors[teamColor], (resultsMem + 1) % 6);
+      setColorOnFace(teamColors[teamColor], (orientationFace + 4) % 6);
     }
     if (currentBid > 2) {
-      setColorOnFace(teamColors[teamColor], (resultsMem + 5) % 6);
+      setColorOnFace(teamColors[teamColor], (orientationFace + 8) % 6);
     }
   }
 }
 
-#define DIAMOND_HUE 175
-#define DIAMOND_SAT_MAX 100
 
-Timer sparkleTimer;
-byte sparkleFace = 0;
 
 void diamondDisplay() {
   if (resultsTimer.isExpired()) {//normal display
@@ -440,39 +449,68 @@ void diamondDisplay() {
 }
 
 void conduitDisplay() {
-  setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
 
-  if (sparkleTimer.isExpired()) {
-    sparkleTimer.set(1000);
-    sparkleFace = random(5);
+  if (resultsTimer.isExpired()) {//normal display
+    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
+
+    if (sparkleTimer.isExpired()) {
+      sparkleTimer.set(1000);
+      sparkleFace = random(5);
+    }
+
+    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
+      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
+      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
+    }
+
+    switch (pointsEarned) {
+      case 5:
+        setColorOnFace(teamColors[teamColor], (orientationFace + 4) % 6);
+      case 4:
+        setColorOnFace(teamColors[teamColor], (orientationFace + 2) % 6);
+      case 3:
+        setColorOnFace(teamColors[teamColor], (orientationFace + 5) % 6);
+      case 2:
+        setColorOnFace(teamColors[teamColor], (orientationFace + 1) % 6);
+      case 1:
+        setColorOnFace(teamColors[teamColor], orientationFace);
+        break;
+
+    }
+
+  } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 1+2
+    if (resultsMem > 0 && resultsMem < 6) {//pretend to be a bandit
+      banditDisplay();
+    } else {//just be a dark conduit
+      switch (pointsEarned + resultsMem) {//most of the time resultsMem is 0, but I need to add it for fakery before transfers
+        case 5:
+          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 4) % 6);
+        case 4:
+          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 2) % 6);
+        case 3:
+          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 5) % 6);
+        case 2:
+          setColorOnFace(dim(teamColors[teamColor], 100), (orientationFace + 1) % 6);
+        case 1:
+          setColorOnFace(dim(teamColors[teamColor], 100), orientationFace);
+          break;
+      }
+    }
+  } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
+    if (resultsMem > 6) {
+
+    }
+  } else {//stage 4
+    if (resultsMem > 6) {
+
+    }
   }
 
-  if (sparkleTimer.getRemaining() < 250) {//do a little fade down
-    byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
-    setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
-  }
 
-  switch (pointsEarned) {
-    case 5:
-      setColorOnFace(teamColors[teamColor], (orientationFace + 4) % 6);
-    case 4:
-      setColorOnFace(teamColors[teamColor], (orientationFace + 2) % 6);
-    case 3:
-      setColorOnFace(teamColors[teamColor], (orientationFace + 5) % 6);
-    case 2:
-      setColorOnFace(teamColors[teamColor], (orientationFace + 1) % 6);
-    case 1:
-      setColorOnFace(teamColors[teamColor], orientationFace);
-      break;
-  }
 }
 
 void resetDisplay() {
-  if (blinkState == RESET_ALL) {
-    setColor(YELLOW);
-  } else {
-    setColor(dim(YELLOW, 100));
-  }
+  setColor(WHITE);
 }
 
 byte getBlinkState (byte data) {
