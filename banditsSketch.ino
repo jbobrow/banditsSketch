@@ -455,7 +455,7 @@ void conduitDisplay() {
       setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
     }
 
-    displayPoints(pointsEarned, 255, false);
+    displayPoints(pointsEarned, 255, true);
 
 
   } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 1+2
