@@ -29,32 +29,22 @@ void setup() {
 }
 
 void loop() {
-  //listen for reset signals
-  if (buttonLongPressed()) {
-    blinkState = RESET_ALL;
-  }
-
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {
-      if (getBlinkState(getLastValueReceivedOnFace(f)) == RESET_ALL) {
-        blinkState = RESET_ALL;
-      }
-    }
-  }
-
   //do loops
   switch (blinkState) {
     case BANDIT:
     case BANDIT_RESULTS:
       banditLoop();
+      resetCheck();
       break;
     case CONDUIT:
     case CONDUIT_RESULTS:
       conduitLoop();
+      resetCheck();
       break;
     case DIAMOND:
     case DIAMOND_RESULTS:
       diamondLoop();
+      resetCheck();
       break;
     case RESET_ALL:
     case RESET_RESOLVE:
@@ -116,6 +106,20 @@ void loop() {
   buttonDoubleClicked();
   buttonMultiClicked();
   buttonLongPressed();
+}
+
+void resetCheck() {
+  if (buttonLongPressed()) {
+    blinkState = RESET_ALL;
+  }
+
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {
+      if (getBlinkState(getLastValueReceivedOnFace(f)) == RESET_ALL) {
+        blinkState = RESET_ALL;
+      }
+    }
+  }
 }
 
 void banditLoop() {
@@ -237,31 +241,37 @@ void conduitLoop() {
 
   if (blinkState == CONDUIT) {
     //so we just need to look for DIAMOND_RESULTS
-    byte diamondData = getLastValueReceivedOnFace(diamondFace);
-    if (getBlinkState(diamondData) == DIAMOND_RESULTS) {//transition
-      //this is where we do the big reveal thingy
-      blinkState = CONDUIT_RESULTS;
-      if (getPrizeSignal(diamondData) > 0) {
-        //so this is where we send points
 
-        if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
-          //this is a real bandit, so we should pass points
-          prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
-          beginReveal(prizeSignal + 6);//memory value helps us remember how many points we're giving away
+    if (!isValueReceivedOnFaceExpired(diamondFace)) { //hey, I do have a diamond here right now
+      byte diamondData = getLastValueReceivedOnFace(diamondFace);
+      if (getBlinkState(diamondData) == DIAMOND_RESULTS) {//transition
+        //this is where we do the big reveal thingy
+        blinkState = CONDUIT_RESULTS;
+        if (getPrizeSignal(diamondData) > 0) {
+          //so this is where we send points
 
-          pointsEarned = pointsEarned / 2;//retain half rounded down
-          diamondSignal = (diamondData & 56) + prizeSignal;
-        } else {
-          //just a conduit, throw them a 1
-          diamondSignal = (diamondData & 56) + 1;
-          beginReveal(0);//memory value of 0 because we're not doing any special animation
+          if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
+            //this is a real bandit, so we should pass points
+            prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
+            beginReveal(prizeSignal + 6);//memory value helps us remember how many points we're giving away
+
+            pointsEarned = pointsEarned / 2;//retain half rounded down
+            diamondSignal = (diamondData & 56) + prizeSignal;
+          } else {
+            //just a conduit, throw them a 1
+            diamondSignal = (diamondData & 56) + 1;
+            beginReveal(0);//memory value of 0 because we're not doing any special animation
 
 
+          }
         }
+      } else {//just conduit the data
+        diamondSignal = diamondData;
       }
-    } else {//just conduit the data
-      diamondSignal = diamondData;
     }
+
+
+
   } else if (blinkState == CONDUIT_RESULTS) {
     //all we do here is keep blaring the signal
     //then we listen to transition back
