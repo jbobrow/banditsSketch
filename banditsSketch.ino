@@ -218,17 +218,21 @@ void conduitLoop() {
   banditFace = 6;//default no face
   banditSignal = (blinkState << 3);//default signal for no bandit
 
-  if (diamondFace != 6) {
-    banditFace = (diamondFace + 3) % 6;
+  if (diamondFace < 6) {
+    byte potentialBandit = (diamondFace + 3) % 6;
+    //banditFace = (diamondFace + 3) % 6;
 
-    if (!isValueReceivedOnFaceExpired(banditFace)) {//oh, I've got a neighbor there
-      byte neighborData = getLastValueReceivedOnFace(banditFace);
+    if (!isValueReceivedOnFaceExpired(potentialBandit)) {//oh, I've got a neighbor there
+      byte neighborData = getLastValueReceivedOnFace(potentialBandit);
 
       if (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == BANDIT_RESULTS || getBlinkState(neighborData) == CONDUIT || getBlinkState(neighborData) == CONDUIT_RESULTS) {
         //the other neighbor is in fact a bandit (or a conduit)
+        banditFace = potentialBandit;
         banditSignal = (blinkState << 3) + (neighborData & 7);
       }
     }
+
+
   }
 
   if (blinkState == CONDUIT) {
@@ -504,7 +508,7 @@ void displayPoints(byte points, byte fade, bool oriented) {
     case 2:
       setColorOnFace(dim(teamColors[teamColor], fade), (orient + 1) % 6);
     case 1:
-      setColorOnFace(dim(teamColors[teamColor], fade), orient);
+      setColorOnFace(dim(teamColors[teamColor], fade), orient % 6);
       break;
   }
 }
