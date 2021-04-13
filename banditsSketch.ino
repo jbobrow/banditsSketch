@@ -466,14 +466,14 @@ void conduitDisplay() {
       banditDisplay();
     } else {//just be a dark conduit
       setColor(OFF);
-      displayPoints(pointsEarned, 100, false);
+      displayPoints(pointsEarned, 100, true);
     }
   } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 2
     //consistent background
     setColor(OFF);
     //different foregrounds
     if (resultsMem == 0) {//non participant, stay dim
-      displayPoints(pointsEarned, 255, true);
+      displayPoints(pointsEarned, 100, true);
     } else if (resultsMem < 6) {//winner
       setColorOnFace(dim(WHITE, 100), random(5));
       displayPoints(currentBid, 255, false);
@@ -484,7 +484,7 @@ void conduitDisplay() {
   } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
     setColor(OFF);
     if (resultsMem == 0) {//non participant, stay dim
-      displayPoints(pointsEarned, 255, true);
+      displayPoints(pointsEarned, 100, true);
     } else if (resultsMem < 6) {//gaining points, so fade out bid and fade in points
       byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
       displayPoints(currentBid, fadeVal, false);
@@ -501,7 +501,7 @@ void conduitDisplay() {
     //then we have two different methods of dealing with foreground stuff
     if (resultsMem > 0) {//this one is already full brightness
       displayPoints(pointsEarned, 255, true);
-    } else {
+    } else {//I was just dim, just coming up from 100 to 255
       byte fadeVal = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
       displayPoints(pointsEarned, fadeVal, true);
     }
