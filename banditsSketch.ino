@@ -556,7 +556,9 @@ void displayPoints(byte points, byte fade, bool oriented) {
 }
 
 void resetDisplay() {
-  setColor(WHITE);
+  banditDisplay();
+  setColorOnFace(dim(WHITE, 100), random(5));
+  setColorOnFace(dim(WHITE, 100), random(5));
 }
 
 byte getBlinkState (byte data) {
