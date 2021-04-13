@@ -16,7 +16,6 @@ bool showingResults = false;
 Timer resultTimer;
 #define RESULTS_INTERVAL 1000
 
-byte orientationFace = 6;
 byte prizeSignal = 0;
 byte winningFace = 6;
 
@@ -122,9 +121,11 @@ void resetCheck() {
   }
 }
 
+#define NO_DIAMOND 6
+
 void banditLoop() {
 
-  orientationFace = 6;
+  diamondFace = findDiamond();
 
   //transition to diamond or individually reset
   if (buttonMultiClicked()) {
@@ -153,21 +154,9 @@ void banditLoop() {
     teamColor = (teamColor + 1) % 6;
   }
 
-  //now let's handle the win/lose signal stuff
-  //so we need to find the treasure face that we are touching and listen for it to tell us stuff
-
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
-      byte neighborData = getLastValueReceivedOnFace(f);
-      if  (getBlinkState(neighborData) == DIAMOND || getBlinkState(neighborData) == DIAMOND_RESULTS) {
-        orientationFace = f;
-      }
-    }
-  }
-
   //deal with the outcome of my search
-  if (orientationFace < 6) {//I have a diamond neighbor
-    byte diamondData = getLastValueReceivedOnFace(orientationFace);
+  if (diamondFace != NO_DIAMOND) {//I have a diamond neighbor
+    byte diamondData = getLastValueReceivedOnFace(diamondFace);
     if (blinkState == BANDIT) {
       //listen for RESULTS and prizes
       if (getBlinkState(diamondData) == DIAMOND_RESULTS) {
@@ -179,7 +168,7 @@ void banditLoop() {
           blinkState = CONDUIT_RESULTS;
           beginReveal(pointsEarned);//remember how many points we're earning
         } else {
-          beginReveal((orientationFace + 3) % 6);//the orientation face
+          beginReveal((diamondFace + 3) % 6);
         }
       }
     } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
@@ -188,6 +177,36 @@ void banditLoop() {
       }
     }
   }
+}
+
+
+
+byte findDiamond() {
+  byte diamondFound = NO_DIAMOND;
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {//neighbor!
+      byte neighborData = getLastValueReceivedOnFace(f);
+      if  (getBlinkState(neighborData) == DIAMOND || getBlinkState(neighborData) == DIAMOND_RESULTS) {
+        diamondFound = f;
+      }
+    }
+  }
+  return diamondFound;
+}
+
+#define NO_BANDIT 6
+
+bool findBandit(byte face) {
+
+  bool banditFound = false;
+  if (!isValueReceivedOnFaceExpired(face)) {//neighbor!
+    byte neighborData = getLastValueReceivedOnFace(face);
+    if  (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == BANDIT_RESULTS || getBlinkState(neighborData) == CONDUIT || getBlinkState(neighborData) == CONDUIT_RESULTS) {
+      banditFound = true;
+    }
+  }
+
+  return banditFound;
 }
 
 Timer resultsTimer;
@@ -206,81 +225,57 @@ void beginReveal(byte mem) {
 void conduitLoop() {
 
   //first step, determine where the diamond is
-  diamondFace = 6;
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {
-      byte neighborData = getLastValueReceivedOnFace(f);
-      if (getBlinkState(neighborData) == DIAMOND || getBlinkState(neighborData) == DIAMOND_RESULTS) {//hey, a diamond!
-        diamondFace = f;
-        orientationFace = f;
-        //diamondSignal = neighborData;
-      }
-    }
-  }
+  diamondFace = findDiamond();
 
   //now grab the bandit info (if there is any)
-  banditFace = 6;//default no face
-  banditSignal = (blinkState << 3);//default signal for no bandit
-
-  if (diamondFace < 6) {
-    byte potentialBandit = (diamondFace + 3) % 6;
-    //banditFace = (diamondFace + 3) % 6;
-
-    if (!isValueReceivedOnFaceExpired(potentialBandit)) {//oh, I've got a neighbor there
-      byte neighborData = getLastValueReceivedOnFace(potentialBandit);
-
-      if (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == BANDIT_RESULTS || getBlinkState(neighborData) == CONDUIT || getBlinkState(neighborData) == CONDUIT_RESULTS) {
-        //the other neighbor is in fact a bandit (or a conduit)
-        banditFace = potentialBandit;
-        banditSignal = (blinkState << 3) + (neighborData & 7);
-      }
-    }
-
-
+  if (findBandit) {
+    banditFace = (diamondFace + 3) % 6;
+    banditSignal = (blinkState << 3) + (getLastValueReceivedOnFace(banditFace) & 7);
   }
 
   if (blinkState == CONDUIT) {
-    //so we just need to look for DIAMOND_RESULTS
-
-    if (!isValueReceivedOnFaceExpired(diamondFace)) { //hey, I do have a diamond here right now
+    //if we have a diamond neighbor, we need to listen for RESULTS
+    if (diamondFace != NO_DIAMOND) {//we have a diamond neighbor
       byte diamondData = getLastValueReceivedOnFace(diamondFace);
-      if (getBlinkState(diamondData) == DIAMOND_RESULTS) {//transition
-        //this is where we do the big reveal thingy
+      if (getBlinkState(diamondData) == DIAMOND_RESULTS) {//ooh, transition time
         blinkState = CONDUIT_RESULTS;
-        if (getPrizeSignal(diamondData) > 0) {
-          //so this is where we send points
-
-          if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
-            //this is a real bandit, so we should pass points
-            prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
-            beginReveal(prizeSignal + 6);//memory value helps us remember how many points we're giving away
-
-            pointsEarned = pointsEarned / 2;//retain half rounded down
-            diamondSignal = (diamondData & 56) + prizeSignal;
-          } else {
-            //just a conduit, throw them a 1
-            diamondSignal = (diamondData & 56) + 1;
-            beginReveal(0);//memory value of 0 because we're not doing any special animation
-
-
+        if (getPrizeSignal(diamondData) > 0) {//sending points
+          if (banditFace != NO_BANDIT) {//we've got someone to send points to
+            //is it a real bandit or just another conduit?
+            if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
+              //this is an actual bandit
+              prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
+              beginReveal(prizeSignal + 6);//memory value helps us remember how many points we're giving away
+              pointsEarned = pointsEarned / 2;//retain half rounded down
+              diamondSignal = (diamondData & 56) + prizeSignal;
+            } else {
+              //just another conduit
+              diamondSignal = (diamondData & 56) + 1;
+              beginReveal(0);//memory value of 0 because we're not doing any special animation
+            }
           }
+        } else {//not sending points
+          diamondSignal = (diamondData & 56);
+          beginReveal(0);//memory value of 0 because we're not doing any special animation
         }
-      } else {//just conduit the data
-        diamondSignal = diamondData;
+      } else {
+        diamondSignal = (diamondData & 56);
       }
     }
-
-
-
   } else if (blinkState == CONDUIT_RESULTS) {
     //all we do here is keep blaring the signal
-    //then we listen to transition back
-    byte diamondData = getLastValueReceivedOnFace(diamondFace);
-    if (getBlinkState(diamondData) == DIAMOND) {
-      diamondSignal = diamondData;
+    //and listening to see if we can transition back to CONDUIT
+    if (diamondFace != NO_DIAMOND) {//check the diamond
+      byte diamondData = getLastValueReceivedOnFace(diamondFace);
+      if (getBlinkState(diamondData) == DIAMOND) {
+        diamondSignal = diamondData;
+        blinkState = CONDUIT;
+      }
+    } else {//no diamond neighbor, just go back anyway
       blinkState = CONDUIT;
     }
   }
+
 }
 
 void diamondLoop() {
@@ -389,7 +384,7 @@ void banditDisplay() {
 
       FOREACH_FACE(f) {
         byte swooshLevel = max(fadeMax, (highlightMax - map((millis() + ((SWOOSH_PERIOD / 6) * f)) % SWOOSH_PERIOD, 0, SWOOSH_PERIOD, 0, highlightMax)));
-        if (f == orientationFace) {
+        if (f == diamondFace) {
           setColorOnFace(dim(WHITE, swooshLevel), f);
         } else {
           setColorOnFace(dim(teamColors[teamColor], swooshLevel), f);
