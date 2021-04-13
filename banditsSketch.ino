@@ -22,6 +22,9 @@ byte winningFace = 6;
 Timer revealTimer;
 #define REVEAL_INTERVAL 2000
 
+#define NO_DIAMOND 6
+#define NO_BANDIT 6
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -91,10 +94,8 @@ void loop() {
     case CONDUIT:
     case CONDUIT_RESULTS:
       setValueSentOnAllFaces(blinkState << 3);
-      if (diamondFace < 6) {
+      if (diamondFace != NO_DIAMOND && banditFace != NO_BANDIT) {//only send special signals if we've actually got the goods
         setValueSentOnFace(banditSignal, diamondFace);
-      }
-      if (banditFace < 6) {
         setValueSentOnFace(diamondSignal, banditFace);
       }
       break;
@@ -120,8 +121,6 @@ void resetCheck() {
     }
   }
 }
-
-#define NO_DIAMOND 6
 
 void banditLoop() {
 
@@ -193,8 +192,6 @@ byte findDiamond() {
   }
   return diamondFound;
 }
-
-#define NO_BANDIT 6
 
 bool findBandit(byte face) {
 
@@ -469,17 +466,20 @@ void conduitDisplay() {
       banditDisplay();
     } else {//just be a dark conduit
       setColor(OFF);
-      displayPoints(pointsEarned + resultsMem, 100, false);
+      displayPoints(pointsEarned, 100, false);
     }
   } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 2
     //consistent background
     setColor(OFF);
     //different foregrounds
-    if (resultsMem > 0 && resultsMem < 6) {//show that you won
-      setColorOnFace(dim(WHITE, 100), random(5));//sparkle a little in the darkness
+    if (resultsMem == 0) {//non participant, stay dim
+      displayPoints(pointsEarned, 255, true);
+    } else if (resultsMem < 6) {//winner
+      setColorOnFace(dim(WHITE, 100), random(5));
       displayPoints(currentBid, 255, false);
-    } else {//just be a dark conduit
-      displayPoints(pointsEarned + resultsMem, 100, false);
+    } else {//passing to the winner
+      byte fadeVal = 255 - map(resultsTimer.getRemaining(), RESULTS_2 + RESULTS_3 + RESULTS_4, RESULTS_3 + RESULTS_4, 0, 155);
+      displayPoints(resultsMem - 6, fadeVal, true);
     }
   } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
     setColor(OFF);
@@ -490,42 +490,22 @@ void conduitDisplay() {
       displayPoints(currentBid, fadeVal, false);
       displayPoints(pointsEarned, 255 - fadeVal, true);
     } else {//transitioning points out
-      byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 100);
+      byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
       displayPoints(resultsMem - 6, fadeVal, true);
-      displayPoints(pointsEarned, 100, true);
+      displayPoints(pointsEarned, 255, true);
     }
   } else {//stage 4
     //everyone fades up white background
     byte bgFade = 100 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
     //then we have two different methods of dealing with foreground stuff
-    if (resultsMem > 0 && resultsMem < 6) {//this one is already full brightness
+    if (resultsMem > 0) {//this one is already full brightness
       displayPoints(pointsEarned, 255, true);
     } else {
       byte fadeVal = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
       displayPoints(pointsEarned, fadeVal, true);
     }
   }
-
-  //    byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 100);
-  //    if (resultsMem > 6) {//fake bandit becoming a conduit (getting points)
-  //      //fade down bid
-  //      displayPoints(currentBid, 255 - fadeVal, false);
-  //      //fade up points
-  //      displayPoints(resultsMem, fadeVal, true);
-  //    } else if (resultsMem > 0) {//conduit losing points
-  //      displayPoints(pointsEarned + resultsMem, fadeVal, true);
-  //      displayPoints(pointsEarned, 255, true);
-  //
-  //    } else {
-  //      //nothing really
-  //      displayPoints(pointsEarned, 100, true);
-  //    }
-  //  } else {//stage 4
-  //    if (resultsMem > 6) {
-  //
-  //    }
-
 }
 
 void displayPoints(byte points, byte fade, bool oriented) {
