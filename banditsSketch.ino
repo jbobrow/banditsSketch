@@ -167,7 +167,7 @@ void banditLoop() {
           blinkState = CONDUIT_RESULTS;
           beginReveal(pointsEarned);//remember how many points we're earning
         } else {
-          beginReveal((diamondFace + 3) % 6);
+          beginReveal(0);
         }
       }
     } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
