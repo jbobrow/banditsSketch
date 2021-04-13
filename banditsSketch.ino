@@ -210,10 +210,15 @@ bool findBandit(byte face) {
 }
 
 Timer resultsTimer;
-#define RESULTS_1 1500
-#define RESULTS_2 1000
-#define RESULTS_3 500
-#define RESULTS_4 250
+//#define RESULTS_1 1500
+//#define RESULTS_2 1000
+//#define RESULTS_3 500
+//#define RESULTS_4 250
+
+#define RESULTS_1 2000
+#define RESULTS_2 2000
+#define RESULTS_3 2000
+#define RESULTS_4 2000
 
 byte resultsMem = 0;
 
@@ -393,26 +398,15 @@ void banditDisplay() {
     } else {//revealed display
       //so we have a default visual
       setColor(OFF);
-      displayPoints(currentBid, 255, true);
+      displayPoints(currentBid, 255, false);
     }
-
-
   } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
     setColor(OFF);
     setColorOnFace(dim(teamColors[teamColor], 100), random(5));
-
-
   } else {//stages 2+3+4
-    //display bid in dim color
-    Color displayColor = teamColors[teamColor];
-    if (resultsMem > 6) {
-      //we're actually a conduit, just using this loop
-      setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
-      setColorOnFace(dim(WHITE, 100), random(5));
-    } else {
-      setColor(OFF);
-    }
-    displayPoints(currentBid, 255, true);
+    //display bid because you didn't win
+    setColor(OFF);
+    displayPoints(currentBid, 255, false);
   }
 }
 
@@ -467,34 +461,67 @@ void conduitDisplay() {
     displayPoints(pointsEarned, 255, true);
 
 
-  } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 1+2
+  } else if (resultsTimer.getRemaining() > RESULTS_2 + RESULTS_3 + RESULTS_4) {//stage 1
     if (resultsMem > 0 && resultsMem < 6) {//pretend to be a bandit
       banditDisplay();
     } else {//just be a dark conduit
       setColor(OFF);
       displayPoints(pointsEarned + resultsMem, 100, false);
     }
+  } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 2
+    //consistent background
+    setColor(OFF);
+    //different foregrounds
+    if (resultsMem > 0 && resultsMem < 6) {//show that you won
+      setColorOnFace(dim(WHITE, 100), random(5));//sparkle a little in the darkness
+      displayPoints(currentBid, 255, false);
+    } else {//just be a dark conduit
+      displayPoints(pointsEarned + resultsMem, 100, false);
+    }
   } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
-    byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
-    if (resultsMem > 6) {//fake bandit becoming a conduit (getting points)
-      //fade down bid
-      displayPoints(currentBid, fadeVal, false);
-      //fade up points
-      displayPoints(resultsMem, 255 - fadeVal, true);
-    } else if (resultsMem > 0) {//conduit losing points
-      displayPoints(pointsEarned + resultsMem, fadeVal, true);
+    setColor(OFF);
+    if (resultsMem == 0) {//non participant, stay dim
       displayPoints(pointsEarned, 255, true);
-
-    } else {
-      //nothing really
+    } else if (resultsMem < 6) {//gaining points, so fade out bid and fade in points
+      byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
+      displayPoints(currentBid, fadeVal, false);
+      displayPoints(pointsEarned, 255 - fadeVal, true);
+    } else {//transitioning points out
+      byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 100);
+      displayPoints(resultsMem - 6, fadeVal, true);
       displayPoints(pointsEarned, 100, true);
     }
   } else {//stage 4
-    if (resultsMem > 6) {
-
+    //everyone fades up white background
+    byte bgFade = map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
+    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
+    //then we have two different methods of dealing with foreground stuff
+    if (resultsMem > 0 && resultsMem < 6) {//this one is already full brightness
+      displayPoints(pointsEarned, 255, true);
+    } else {
+      byte fadeVal = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
+      displayPoints(pointsEarned, fadeVal, true);
     }
   }
 
+  //    byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 100);
+  //    if (resultsMem > 6) {//fake bandit becoming a conduit (getting points)
+  //      //fade down bid
+  //      displayPoints(currentBid, 255 - fadeVal, false);
+  //      //fade up points
+  //      displayPoints(resultsMem, fadeVal, true);
+  //    } else if (resultsMem > 0) {//conduit losing points
+  //      displayPoints(pointsEarned + resultsMem, fadeVal, true);
+  //      displayPoints(pointsEarned, 255, true);
+  //
+  //    } else {
+  //      //nothing really
+  //      displayPoints(pointsEarned, 100, true);
+  //    }
+  //  } else {//stage 4
+  //    if (resultsMem > 6) {
+  //
+  //    }
 
 }
 
