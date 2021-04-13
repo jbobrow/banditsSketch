@@ -407,6 +407,9 @@ void banditDisplay() {
     //display bid because you didn't win
     setColor(OFF);
     displayPoints(currentBid, 255, false);
+
+    revealTimer.set(REVEAL_INTERVAL);
+    isRevealed = true;
   }
 }
 
@@ -493,7 +496,7 @@ void conduitDisplay() {
     }
   } else {//stage 4
     //everyone fades up white background
-    byte bgFade = map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
+    byte bgFade = 100 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
     //then we have two different methods of dealing with foreground stuff
     if (resultsMem > 0 && resultsMem < 6) {//this one is already full brightness
@@ -527,29 +530,29 @@ void conduitDisplay() {
 
 void displayPoints(byte points, byte fade, bool oriented) {
 
-  FOREACH_FACE(f) {
-    if (f < points) {
-      setColorOnFace(dim(teamColors[teamColor], fade), f);
-    }
-  }
+  //  FOREACH_FACE(f) {
+  //    if (f < points) {
+  //      setColorOnFace(dim(teamColors[teamColor], fade), f);
+  //    }
+  //  }
 
-  //  byte orient = orientationFace;
-  //  if (oriented == false) {//it is reverse oriented (outside edge)
-  //    orient += 3;
-  //  }
-  //  switch (points) {
-  //    case 5:
-  //      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 4) % 6);
-  //    case 4:
-  //      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 2) % 6);
-  //    case 3:
-  //      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 5) % 6);
-  //    case 2:
-  //      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 1) % 6);
-  //    case 1:
-  //      setColorOnFace(dim(teamColors[teamColor], fade), orient % 6);
-  //      break;
-  //  }
+  byte orient = diamondFace;
+  if (oriented == false) {//it is reverse oriented (outside edge)
+    orient += 3;
+  }
+  switch (points) {
+    case 5:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 4) % 6);
+    case 4:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 2) % 6);
+    case 3:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 5) % 6);
+    case 2:
+      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 1) % 6);
+    case 1:
+      setColorOnFace(dim(teamColors[teamColor], fade), orient % 6);
+      break;
+  }
 }
 
 void resetDisplay() {
