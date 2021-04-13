@@ -25,6 +25,9 @@ Timer revealTimer;
 #define NO_DIAMOND 6
 #define NO_BANDIT 6
 
+enum conduitRevealTypes {NOTHING, WIN_LINE, WIN_PASS, WIN_BANDIT};
+byte conduitRevealType = NOTHING;
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -166,8 +169,9 @@ void banditLoop() {
           pointsEarned = getPrizeSignal(diamondData);
           blinkState = CONDUIT_RESULTS;
           beginReveal(pointsEarned);//remember how many points we're earning
+          conduitRevealType = WIN_BANDIT;
         } else {
-          beginReveal(0);
+          beginReveal(0);//we did not win, so we don't need to remember anything
         }
       }
     } else {//we're in RESULTS but didn't win. Just wait to see the DIAMOND return
@@ -247,18 +251,21 @@ void conduitLoop() {
             if (getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT || getBlinkState(getLastValueReceivedOnFace(banditFace)) == BANDIT_RESULTS) {
               //this is an actual bandit
               prizeSignal = pointsEarned - (pointsEarned / 2);//hand out half rounded up
-              beginReveal(prizeSignal + 6);//memory value helps us remember how many points we're giving away
+              beginReveal(prizeSignal);//memory value helps us remember how many points we're giving away
+              conduitRevealType = WIN_PASS;
               pointsEarned = pointsEarned / 2;//retain half rounded down
               diamondSignal = (diamondData & 56) + prizeSignal;
             } else {
               //just another conduit
               diamondSignal = (diamondData & 56) + 1;
               beginReveal(0);//memory value of 0 because we're not doing any special animation
+              conduitRevealType = WIN_LINE;
             }
           }
         } else {//not sending points
           diamondSignal = (diamondData & 56);
           beginReveal(0);//memory value of 0 because we're not doing any special animation
+          conduitRevealType = NOTHING;
         }
       } else {
         diamondSignal = (diamondData & 56);
@@ -462,7 +469,7 @@ void conduitDisplay() {
 
 
   } else if (resultsTimer.getRemaining() > RESULTS_2 + RESULTS_3 + RESULTS_4) {//stage 1
-    if (resultsMem > 0 && resultsMem < 6) {//pretend to be a bandit
+    if (conduitRevealType == WIN_BANDIT) {//pretend to be a bandit
       banditDisplay();
     } else {//just be a dark conduit
       setColor(OFF);
@@ -472,38 +479,63 @@ void conduitDisplay() {
     //consistent background
     setColor(OFF);
     //different foregrounds
-    if (resultsMem == 0) {//non participant, stay dim
-      displayPoints(pointsEarned, 100, true);
-    } else if (resultsMem < 6) {//winner
-      setColorOnFace(dim(WHITE, 100), random(5));
-      displayPoints(currentBid, 255, false);
-    } else {//passing to the winner
-      byte fadeVal = 255 - map(resultsTimer.getRemaining(), RESULTS_2 + RESULTS_3 + RESULTS_4, RESULTS_3 + RESULTS_4, 0, 155);
-      displayPoints(resultsMem - 6, fadeVal, true);
+
+    switch (conduitRevealType) {
+      case NOTHING:
+        displayPoints(pointsEarned, 100, true);
+        break;
+      case WIN_LINE:
+      case WIN_PASS:
+        setColorOnFace(dim(WHITE, 100), random(5));
+        displayPoints(pointsEarned + resultsMem, 100, true);
+        break;
+      case WIN_BANDIT:
+        setColorOnFace(dim(WHITE, 100), random(5));
+        displayPoints(currentBid, 255, false);
+        break;
     }
+
+
   } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
     setColor(OFF);
-    if (resultsMem == 0) {//non participant, stay dim
-      displayPoints(pointsEarned, 100, true);
-    } else if (resultsMem < 6) {//gaining points, so fade out bid and fade in points
-      byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
-      displayPoints(currentBid, fadeVal, false);
-      displayPoints(pointsEarned, 255 - fadeVal, true);
-    } else {//transitioning points out
-      byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
-      displayPoints(resultsMem - 6, fadeVal, true);
-      displayPoints(pointsEarned, 255, true);
+
+    //consistent background
+    setColor(OFF);
+    setColorOnFace(dim(WHITE, 100), random(5));
+
+    //different foregrounds
+    byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
+    switch (conduitRevealType) {
+      case NOTHING:
+        //do actual blank stuff
+        setColor(OFF);
+        displayPoints(pointsEarned, 100, true);
+        break;
+      case WIN_LINE:
+        //sparkle and show points
+        displayPoints(pointsEarned, 100, true);
+        break;
+      case WIN_PASS:
+        //fade down the points you are losing
+        displayPoints(pointsEarned, 100, true);
+        displayPoints(pointsEarned + resultsMem, fadeVal, true);
+        break;
+      case WIN_BANDIT:
+        //fade down bid, fade up points
+        displayPoints(currentBid, fadeVal, false);
+        displayPoints(pointsEarned, 255 - fadeVal, true);
+        break;
     }
+
+
   } else {//stage 4
     //everyone fades up white background
     byte bgFade = 100 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
-    //then we have two different methods of dealing with foreground stuff
-    if (resultsMem > 0) {//this one is already full brightness
+    if (conduitRevealType == WIN_BANDIT) {//this one is already bright enough
       displayPoints(pointsEarned, 255, true);
-    } else {//I was just dim, just coming up from 100 to 255
-      byte fadeVal = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
-      displayPoints(pointsEarned, fadeVal, true);
+    } else {//the rest just need to fade up
+      displayPoints(pointsEarned, (bgFade * 2) + 55, true);
     }
   }
 }
