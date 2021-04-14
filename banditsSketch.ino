@@ -234,7 +234,9 @@ void conduitLoop() {
   diamondFace = findDiamond();
 
   //now grab the bandit info (if there is any)
-  if (findBandit) {
+  banditFace = NO_BANDIT;
+  banditSignal = (blinkState << 3);
+  if (findBandit((diamondFace + 3) % 6)) {
     banditFace = (diamondFace + 3) % 6;
     banditSignal = (blinkState << 3) + (getLastValueReceivedOnFace(banditFace) & 7);
   }
@@ -445,8 +447,12 @@ void diamondDisplay() {
       setColorOnFace(WHITE, resultsMem);
     }
   } else {//stage 4
-    byte fadeMap = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
-    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, fadeMap));
+    //byte fadeMap = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
+    //setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, fadeMap));
+  }
+
+  if (winningFace < 6) {
+    setColorOnFace(RED, winningFace);
   }
 }
 
@@ -531,13 +537,13 @@ void conduitDisplay() {
 
   } else {//stage 4
     //everyone fades up white background
-    byte bgFade = 100 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
-    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
-    if (conduitRevealType == WIN_BANDIT) {//this one is already bright enough
-      displayPoints(pointsEarned, 255, true);
-    } else {//the rest just need to fade up
-      displayPoints(pointsEarned, bgFade + 155, true);
-    }
+    //    byte bgFade = 100 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
+    //    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
+    //    if (conduitRevealType == WIN_BANDIT) {//this one is already bright enough
+    //      displayPoints(pointsEarned, 255, true);
+    //    } else {//the rest just need to fade up
+    //      displayPoints(pointsEarned, bgFade + 155, true);
+    //    }
   }
 }
 
