@@ -473,7 +473,7 @@ void conduitDisplay() {
       banditDisplay();
     } else {//just be a dark conduit
       setColor(OFF);
-      displayPoints(pointsEarned, 100, true);
+      displayPoints(pointsEarned + resultsMem, 100, true);
     }
   } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 2
     //consistent background
@@ -517,8 +517,9 @@ void conduitDisplay() {
         break;
       case WIN_PASS:
         //fade down the points you are losing
-        displayPoints(pointsEarned, 100, true);
         displayPoints(pointsEarned + resultsMem, fadeVal, true);
+        //but maintain the points you're keeping
+        displayPoints(pointsEarned, 100, true);
         break;
       case WIN_BANDIT:
         //fade down bid, fade up points
@@ -535,18 +536,12 @@ void conduitDisplay() {
     if (conduitRevealType == WIN_BANDIT) {//this one is already bright enough
       displayPoints(pointsEarned, 255, true);
     } else {//the rest just need to fade up
-      displayPoints(pointsEarned, (bgFade * 2) + 55, true);
+      displayPoints(pointsEarned, bgFade + 155, true);
     }
   }
 }
 
 void displayPoints(byte points, byte fade, bool oriented) {
-
-  //  FOREACH_FACE(f) {
-  //    if (f < points) {
-  //      setColorOnFace(dim(teamColors[teamColor], fade), f);
-  //    }
-  //  }
 
   byte orient = diamondFace;
   if (oriented == false) {//it is reverse oriented (outside edge)
