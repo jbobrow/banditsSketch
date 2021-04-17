@@ -28,6 +28,8 @@ Timer revealTimer;
 enum conduitRevealTypes {NOTHING, WIN_LINE, WIN_PASS, WIN_BANDIT};
 byte conduitRevealType = NOTHING;
 
+byte faces[18] = {0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5};
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -232,8 +234,8 @@ void conduitLoop() {
   //now grab the bandit info (if there is any)
   banditFace = NO_BANDIT;
   banditSignal = (blinkState << 3);
-  if (findBandit((diamondFace + 3) % 6)) {
-    banditFace = (diamondFace + 3) % 6;
+  if (findBandit(faces[diamondFace + 3])) {
+    banditFace = faces[diamondFace + 3];
     banditSignal = (blinkState << 3) + (getLastValueReceivedOnFace(banditFace) & 7);
   }
 
@@ -552,15 +554,15 @@ void displayPoints(byte points, byte fade, bool oriented) {
   }
   switch (points) {
     case 5:
-      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 4) % 6);
+      setColorOnFace(dim(teamColors[teamColor], fade), faces[orient + 4]);
     case 4:
-      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 2) % 6);
+      setColorOnFace(dim(teamColors[teamColor], fade), faces[orient + 2]);
     case 3:
-      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 5) % 6);
+      setColorOnFace(dim(teamColors[teamColor], fade), faces[orient + 5]);
     case 2:
-      setColorOnFace(dim(teamColors[teamColor], fade), (orient + 1) % 6);
+      setColorOnFace(dim(teamColors[teamColor], fade), faces[orient + 1]);
     case 1:
-      setColorOnFace(dim(teamColors[teamColor], fade), orient % 6);
+      setColorOnFace(dim(teamColors[teamColor], fade), faces[orient]);
       break;
   }
 }
