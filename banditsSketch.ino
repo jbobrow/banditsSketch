@@ -456,8 +456,10 @@ void diamondDisplay() {
 
 void conduitDisplay() {
 
+  //the background is always OFF
+  setColor(OFF);
+
   if (resultsTimer.isExpired()) {//normal display
-    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
 
     if (sparkleTimer.isExpired()) {
       sparkleTimer.set(1000);
@@ -476,7 +478,6 @@ void conduitDisplay() {
     if (conduitRevealType == WIN_BANDIT) {//pretend to be a bandit
       banditDisplay();
     } else {//just be a dark conduit
-      setColor(OFF);
       displayPoints(pointsEarned + resultsMem, 100, true);
     }
   } else if (resultsTimer.getRemaining() > RESULTS_3 + RESULTS_4) {//stage 2
@@ -490,7 +491,6 @@ void conduitDisplay() {
         displayPoints(pointsEarned, 100, true);
         break;
       case WIN_PASS:
-        //setColorOnFace(dim(WHITE, 100), random(5));
         displayPoints(pointsEarned + resultsMem, 100, true);
         break;
       case WIN_BANDIT:
@@ -501,17 +501,11 @@ void conduitDisplay() {
 
 
   } else if (resultsTimer.getRemaining() > RESULTS_4) {//stage 3
-    //setColor(OFF);
 
-    //consistent background
-    setColor(OFF);
-
-    //different foregrounds
     byte fadeVal = map(resultsTimer.getRemaining(), RESULTS_4, RESULTS_3 + RESULTS_4, 0, 255);
     switch (conduitRevealType) {
       case NOTHING:
         //do actual blank stuff
-        setColor(OFF);
         displayPoints(pointsEarned, 100, true);
         break;
       case WIN_LINE:
@@ -533,15 +527,15 @@ void conduitDisplay() {
 
 
   } else {//stage 4
-    //everyone fades up white background
-    byte bgFade = 100 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 100);
-    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
+
+    //setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, bgFade));
     if (conduitRevealType == WIN_BANDIT) {//gain points
       byte fadeVal = map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 255);
       displayPoints(currentBid, fadeVal, false);
       displayPoints(pointsEarned, 255 - fadeVal, true);
     } else {//the rest just need to fade up
-      displayPoints(pointsEarned, bgFade + 155, true);
+      byte fadeVal = 155 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
+      displayPoints(pointsEarned, fadeVal + 100, true);
     }
   }
 }
