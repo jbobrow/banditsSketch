@@ -407,13 +407,14 @@ void banditDisplay() {
   } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
     setColor(OFF);
     setColorOnFace(dim(teamColors[teamColor], 100), random(5));
+
+    //set the reveal timer so it pops at the end of the process
+    revealTimer.set(REVEAL_INTERVAL);
+    isRevealed = true;
   } else {//stages 2+3+4
     //display bid because you didn't win
     setColor(OFF);
     displayPoints(currentBid, 255, false);
-
-    revealTimer.set(REVEAL_INTERVAL);
-    isRevealed = true;
   }
 }
 
@@ -464,7 +465,7 @@ void conduitDisplay() {
 
   if (resultsTimer.isExpired()) {//normal display
 
-    sparkleDisplay(100);
+    sparkleDisplay(50);
 
     //    if (sparkleTimer.isExpired()) {
     //      sparkleTimer.set(1000);
@@ -545,9 +546,9 @@ void conduitDisplay() {
   }
 }
 
-#define SPARKLE_FULL_DURATION 1000
-#define SPARKLE_VARIANCE 500
-#define SPARKLE_FLASH_DURATION 75
+#define SPARKLE_FULL_DURATION 1500
+#define SPARKLE_VARIANCE 1000
+#define SPARKLE_FLASH_DURATION 125
 bool sparkleDirection = true;
 
 void sparkleDisplay(byte bri) {
