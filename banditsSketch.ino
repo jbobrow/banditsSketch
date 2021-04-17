@@ -423,15 +423,18 @@ void diamondDisplay() {
   if (resultsTimer.isExpired()) {//normal display
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255));
 
-    if (sparkleTimer.isExpired()) {
-      sparkleTimer.set(1000);
-      sparkleFace = random(5);
-    }
+    sparkleDisplay(255);
 
-    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
-      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
-      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
-    }
+    //    if (sparkleTimer.isExpired()) {
+    //      sparkleTimer.set(1000);
+    //      sparkleFace = random(5);
+    //    }
+    //
+    //    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
+    //      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
+    //      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
+    //    }
+
   } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
 
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
@@ -461,15 +464,17 @@ void conduitDisplay() {
 
   if (resultsTimer.isExpired()) {//normal display
 
-    if (sparkleTimer.isExpired()) {
-      sparkleTimer.set(1000);
-      sparkleFace = random(5);
-    }
+    sparkleDisplay(100);
 
-    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
-      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
-      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
-    }
+    //    if (sparkleTimer.isExpired()) {
+    //      sparkleTimer.set(1000);
+    //      sparkleFace = random(5);
+    //    }
+    //
+    //    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
+    //      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
+    //      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
+    //    }
 
     displayPoints(pointsEarned, 255, true);
 
@@ -537,6 +542,45 @@ void conduitDisplay() {
       byte fadeVal = 155 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
       displayPoints(pointsEarned, fadeVal + 100, true);
     }
+  }
+}
+
+#define SPARKLE_FULL_DURATION 1000
+#define SPARKLE_VARIANCE 500
+#define SPARKLE_FLASH_DURATION 75
+bool sparkleDirection = true;
+
+void sparkleDisplay(byte bri) {
+
+  if (sparkleTimer.isExpired()) {
+    sparkleTimer.set(SPARKLE_FULL_DURATION + random(SPARKLE_VARIANCE));
+    sparkleFace = random(5) + 6;
+    sparkleDirection = random(1);
+
+  } else if (sparkleTimer.getRemaining() < SPARKLE_FLASH_DURATION) {//spark 3
+
+    setColorOnFace(dim(WHITE, bri), faces[sparkleFace]);
+
+  } else if (sparkleTimer.getRemaining() < SPARKLE_FLASH_DURATION * 2) { //spark 2
+
+    if (sparkleDirection) {
+      setColorOnFace(dim(WHITE, bri), faces[sparkleFace + 1]);
+
+    } else {
+      setColorOnFace(dim(WHITE, bri), faces[sparkleFace - 1]);
+
+    }
+
+  } else if (sparkleTimer.getRemaining() < SPARKLE_FLASH_DURATION * 3) { //spark 2
+
+    if (sparkleDirection) {
+      setColorOnFace(dim(WHITE, bri), faces[sparkleFace + 2]);
+
+    } else {
+      setColorOnFace(dim(WHITE, bri), faces[sparkleFace - 2]);
+
+    }
+
   }
 }
 
