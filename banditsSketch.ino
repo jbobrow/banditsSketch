@@ -18,6 +18,8 @@ Timer resultTimer;
 
 byte prizeSignal = 0;
 byte winningFace = 6;
+//DEBUG VARIABLE, DELETE LATER
+byte winningBid = 0;
 
 Timer revealTimer;
 #define REVEAL_INTERVAL 2000
@@ -305,15 +307,21 @@ void diamondLoop() {
 
       //now determine the winner and where it is located
       winningFace = 6;//default to 6 because that's no one
+      //DEBUG VARIABLE
+      winningBid = 0;
+
       if (bidCount[2] == 1) {
         winningFace = bidLocation[2];
         prizeSignal = 3;
+        winningBid = 3;
       } else if (bidCount[1] == 1) {
         winningFace = bidLocation[1];
         prizeSignal = 4;
+        winningBid = 2;
       } else if (bidCount[0] == 1) {
         winningFace = bidLocation[0];
         prizeSignal = 5;
+        winningBid = 1;
       }
     }
 
@@ -381,6 +389,17 @@ byte sparkleFace = 0;
 
 void banditDisplay() {
 
+  setColor(OFF);
+  switch (currentBid) {
+    case 3:
+      setColorOnFace(BLUE, 3);
+    case 2:
+      setColorOnFace(YELLOW, 2);
+    case 1:
+      setColorOnFace(RED, 1);
+      break;
+  }
+
   //  if (resultsTimer.isExpired()) {//normal display
   //    if (revealTimer.getRemaining() < FADE_DURATION) {//default display and fade
   //      //so we start with a default spin
@@ -419,6 +438,20 @@ void banditDisplay() {
 
 void diamondDisplay() {
 
+  setColor(dim(WHITE, 100));
+  if (winningFace < 6) {
+    switch (winningBid) {
+      case 1:
+        setColorOnFace(RED, winningFace);
+        break;
+      case 2:
+        setColorOnFace(YELLOW, winningFace);
+        break;
+      case 3:
+        setColorOnFace(BLUE, winningFace);
+        break;
+    }
+  }
 
   //  if (resultsTimer.isExpired()) {//normal display
   //    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 255));
@@ -448,13 +481,32 @@ void diamondDisplay() {
   //    byte fadeMap = 255 - map(resultsTimer.getRemaining(), 0, RESULTS_4, 0, 155);
   //    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, fadeMap));
   //  }
-
-  //  if (winningFace < 6) {
-  //    setColorOnFace(RED, winningFace);
-  //  }
 }
 
 void conduitDisplay() {
+  setColor(dim(GREEN, 50));
+  if (banditFace != NO_BANDIT && diamondFace != NO_DIAMOND) {//we are sending signals
+    byte banditBid = getBid(banditSignal);
+
+    //display bandit bid on diamond face
+    switch (banditBid) {
+      case 0:
+        setColorOnFace(WHITE, diamondFace);
+        break;
+      case 1:
+        setColorOnFace(RED, diamondFace);
+        break;
+      case 2:
+        setColorOnFace(YELLOW, diamondFace);
+        break;
+      case 3:
+        setColorOnFace(BLUE, diamondFace);
+        break;
+    }
+
+    setColorOnFace(WHITE, banditFace);
+
+  }
 
   //  if (resultsTimer.isExpired()) {//normal display
   //    setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
