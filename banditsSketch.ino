@@ -288,8 +288,8 @@ void conduitLoop() {
 void diamondLoop() {
   if (blinkState == DIAMOND) {//determine winner
 
-    byte bidCount[3] = {0, 0, 0};//this tells me how many bids of 1/2/3 we receive
-    byte bidLocation[3] = {6, 6, 6};//this tell me where the bid is located, defaulting to 6 because that's nowhere
+    byte bidCount[4] = {0, 0, 0, 0};//this tells me how many bids of 1/2/3 we receive
+    byte bidLocation[4] = {6, 6, 6, 6};//this tell me where the bid is located, defaulting to 6 because that's nowhere
 
     //run through the faces and fill out these arrays
     FOREACH_FACE(f) {
@@ -298,21 +298,21 @@ void diamondLoop() {
 
         if (getBlinkState(neighborData) == BANDIT || getBlinkState(neighborData) == CONDUIT) {
           byte thisBid = getBid(neighborData);
-          bidCount[thisBid - 1] += 1;//increment the count for this type of bid
-          bidLocation[thisBid - 1] = f;//set this as the location for that bid. Overwriting is fine because duplicates can't score anyway
+          bidCount[thisBid] += 1;//increment the count for this type of bid
+          bidLocation[thisBid] = f;//set this as the location for that bid. Overwriting is fine because duplicates can't score anyway
         }
       }
 
       //now determine the winner and where it is located
       winningFace = 6;//default to 6 because that's no one
-      if (bidCount[2] == 1) {
-        winningFace = bidLocation[2];
+      if (bidCount[3] == 1) {
+        winningFace = bidLocation[3];
         prizeSignal = 3;
+      } else if (bidCount[2] == 1) {
+        winningFace = bidLocation[2];
+        prizeSignal = 4;
       } else if (bidCount[1] == 1) {
         winningFace = bidLocation[1];
-        prizeSignal = 4;
-      } else if (bidCount[0] == 1) {
-        winningFace = bidLocation[0];
         prizeSignal = 5;
       }
     }
