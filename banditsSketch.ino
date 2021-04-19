@@ -378,6 +378,8 @@ void resetLoop() {
 #define DIAMOND_HUE 175
 #define DIAMOND_SAT_MAX 100
 
+#define DIAMOND_CONDUIT_SPARKLE 192
+
 Timer sparkleTimer;
 byte sparkleFace = 0;
 
@@ -465,7 +467,6 @@ void conduitDisplay() {
 
   if (resultsTimer.isExpired()) {//normal display
 
-    sparkleDisplay(50);
 
     //    if (sparkleTimer.isExpired()) {
     //      sparkleTimer.set(1000);
@@ -479,6 +480,7 @@ void conduitDisplay() {
 
     displayPoints(pointsEarned, 255, true);
 
+    sparkleDisplay(DIAMOND_CONDUIT_SPARKLE);  // show diamond sparkle over the top of the points
 
   } else if (resultsTimer.getRemaining() > RESULTS_2 + RESULTS_3 + RESULTS_4) {//stage 1
     if (conduitRevealType == WIN_BANDIT) {//pretend to be a bandit
@@ -500,7 +502,7 @@ void conduitDisplay() {
         displayPoints(pointsEarned + resultsMem, 100, true);
         break;
       case WIN_BANDIT:
-        setColorOnFace(dim(WHITE, 100), random(5));
+        setColorOnFace(dim(WHITE, DIAMOND_CONDUIT_SPARKLE), random(5));
         displayPoints(currentBid, 255, false);
         break;
     }
@@ -526,7 +528,7 @@ void conduitDisplay() {
         break;
       case WIN_BANDIT:
         //fade down bid, fade up points
-        setColorOnFace(dim(WHITE, 100), random(5));
+        setColorOnFace(dim(WHITE, DIAMOND_CONDUIT_SPARKLE), random(5));
         displayPoints(currentBid, 255, false);
         break;
     }
@@ -547,14 +549,14 @@ void conduitDisplay() {
 }
 
 #define SPARKLE_FULL_DURATION 1500
-#define SPARKLE_VARIANCE 1000
-#define SPARKLE_FLASH_DURATION 125
+#define SPARKLE_VARIANCE 250// 
+#define SPARKLE_FLASH_DURATION 75
 bool sparkleDirection = true;
 
 void sparkleDisplay(byte bri) {
 
   if (sparkleTimer.isExpired()) {
-    sparkleTimer.set(SPARKLE_FULL_DURATION + random(SPARKLE_VARIANCE));
+    sparkleTimer.set(SPARKLE_FULL_DURATION + (random(4) * SPARKLE_VARIANCE));
     sparkleFace = random(5) + 6;
     sparkleDirection = random(1);
 
