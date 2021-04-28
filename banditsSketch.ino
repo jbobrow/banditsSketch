@@ -372,6 +372,7 @@ void resetLoop() {
 
 #define SWOOSH_PERIOD 750
 #define SWOOSH_HIGHLIGHT 200
+#define SWOOSH_HIGHLIGHT_MIN 50
 
 #define FADE_DURATION 750
 
@@ -383,13 +384,28 @@ void resetLoop() {
 Timer sparkleTimer;
 byte sparkleFace = 0;
 
+bool highlightRising = false;
+byte highlightMax = SWOOSH_HIGHLIGHT;
+
 void banditDisplay() {
 
   if (resultsTimer.isExpired()) {//normal display
     if (revealTimer.getRemaining() < FADE_DURATION) {//default display and fade
       //so we start with a default spin
-      byte sinVal = sin8_C(map(millis() % (SWOOSH_PERIOD * 4), 0, SWOOSH_PERIOD * 4, 0, 255));
-      byte highlightMax = map(sinVal, 0, 255, 50, SWOOSH_HIGHLIGHT);
+
+      // Rise and fall of the bandit highlight
+      if (highlightRising) {
+        highlightMax++;
+        if (highlightMax >= SWOOSH_HIGHLIGHT) {
+          highlightRising = false;
+        }
+      }
+      else {
+        highlightMax--;
+        if (highlightMax <= SWOOSH_HIGHLIGHT_MIN) {
+          highlightRising = true;
+        }
+      }
 
       byte fadeMax = map(revealTimer.getRemaining(), 0, FADE_DURATION, 0, 255);
 
@@ -428,16 +444,6 @@ void diamondDisplay() {
 
     sparkleDisplay(255);
 
-    //    if (sparkleTimer.isExpired()) {
-    //      sparkleTimer.set(1000);
-    //      sparkleFace = random(5);
-    //    }
-    //
-    //    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
-    //      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
-    //      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 255), sparkleFace);
-    //    }
-
   } else if (resultsTimer.getRemaining() > (RESULTS_2 + RESULTS_3 + RESULTS_4)) {//stage 1
 
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, 100));
@@ -455,6 +461,7 @@ void diamondDisplay() {
     setColor(makeColorHSB(DIAMOND_HUE, DIAMOND_SAT_MAX, fadeMap));
   }
 
+  // DEBUG MODE: SHOW WINNING FACE
   //  if (winningFace < 6) {
   //    setColorOnFace(RED, winningFace);
   //  }
@@ -466,17 +473,6 @@ void conduitDisplay() {
   setColor(OFF);
 
   if (resultsTimer.isExpired()) {//normal display
-
-
-    //    if (sparkleTimer.isExpired()) {
-    //      sparkleTimer.set(1000);
-    //      sparkleFace = random(5);
-    //    }
-    //
-    //    if (sparkleTimer.getRemaining() < 250) {//do a little fade down
-    //      byte sat = 100 - map(sparkleTimer.getRemaining(), 0, 250, 0, DIAMOND_SAT_MAX);
-    //      setColorOnFace(makeColorHSB(DIAMOND_HUE, sat, 100), sparkleFace);
-    //    }
 
     displayPoints(pointsEarned, 255, true);
 
@@ -546,6 +542,29 @@ void conduitDisplay() {
       displayPoints(pointsEarned, fadeVal + 100, true);
     }
   }
+
+  // Show an incorrectly placed piece
+  byte diamondNeighbor = getBlinkState(getLastValueReceivedOnFace(diamondFace));
+  bool firstConduit = (diamondNeighbor == DIAMOND_RESULTS || diamondNeighbor == DIAMOND);
+  // TODO: FIX,IT ALWAYS THINKS IT IS FIRST CONDUIT...
+
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) { // a neighbor
+      // if in the first ring
+      if (firstConduit) { 
+        if (f == wrapFace(diamondFace + 2) || f == wrapFace(diamondFace + 4)) {
+          setColorOnFace(RED, f);
+        }
+      }
+      else if (f != diamondFace && f != wrapFace(diamondFace + 3)) {
+        setColorOnFace(RED, f);
+      }
+    }
+  }
+}
+
+byte wrapFace( byte f) {
+  return f % 6;
 }
 
 #define SPARKLE_FULL_DURATION 1500
